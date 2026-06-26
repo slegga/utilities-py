@@ -1,0 +1,146 @@
+From root  Sun Mar 15 09:32:20 2020
+Return-Path: <norwegian@mailgb.custhelp.com>
+Received: from nmspam3.e.nsc.no (nmspam3.e.nsc.no [148.123.163.134])
+	by nmmx5.nsc.no (8.15.2/8.15.2) with ESMTPS id 02F8WHIu035184
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-SHA256 bits=256 verify=NOT)
+	for <customer@online.no>; Sun, 15 Mar 2020 09:32:20 +0100
+Received: from mailgwgb03.rightnowtech.com (mailgwgb03.rightnowtech.com [208.72.90.123])
+	by nmspam3.e.nsc.no  with ESMTP id 02F8WDM2015002-02F8WDM4015002
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO)
+	for <customer@online.no>; Sun, 15 Mar 2020 09:32:16 +0100
+Received: from access-gb.rightnowtech.com (10.80.0.83) by mailgwgb04.rightnowtech.com id hdnk102lr20g for <customer@online.no>; Sun, 15 Mar 2020 08:32:13 +0000 (envelope-from <norwegian@mailgb.custhelp.com>)
+Received: from webgb20.int.rightnowtech.com (localhost [127.0.0.1])
+	by access-gb.rightnowtech.com ("Mail Server") with SMTP id F1550EA03E
+	for <customer@online.no>; Sun, 15 Mar 2020 08:32:12 +0000 (GMT)
+Content-Type: Multipart/Alternative;
+  boundary="------------Boundary-00=_OP78VA40000000000000"
+From: "Norwegian Customer Relations"
+    <customer.relations@norwegian.com>
+Reply-To: "Norwegian Customer Relations"
+    <customer.relations@norwegian.com>
+To: customer@online.no
+Date: Sun, 15 Mar 2020 09:32:12 +0100 (CET)
+Subject: Cancelled flight claim for booking reference  [Incident: 200307-001033]
+MIME-Version: 1.0
+Message-Id: <RNTT.AvPwaQoeDv8S~dlsGhEe~yL587cq1nj~H3uOXjj~PP9H.1584261132.3CPoG8Q1zC0j@webgb20.int.rightnowtech.com>
+Authentication-Results: nmspam3.e.nsc.no;
+	spf=pass (nsc.no: domain of norwegian@mailgb.custhelp.com designates 208.72.90.123 as permitted sender) smtp.mailfrom=norwegian@mailgb.custhelp.com
+X-XClient-IP-Addr: 208.72.90.123
+X-Source-IP: 208.72.90.123
+X-Scanned-By: MIMEDefang 2.78
+
+
+--------------Boundary-00=_OP78VA40000000000000
+Content-Type: Text/Plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+
+---------------------------------------------------------------
+
+Subject
+---------------------------------------------------------------
+Cancelled flight claim for booking reference
+
+Discussion Thread
+---------------------------------------------------------------
+Vi jobber effektivt med =C3=A5 fullf=C3=B8re kravet ditt, men vi har for =
+=C3=B8yeblikket litt lengre behandlingstid enn vanlig.
+
+Vi takker for din t=C3=A5lmodighet.
+
+Med vennlig hilsen,
+Customer Care
+
+
+
+
+Question Reference # 200307-001033
+       Date Created: 07/03/2020 14:31
+  Date Last Updated: 15/03/2020 09:32
+             Status: Solved
+
+
+[---001:000712:57296---]
+
+--------------Boundary-00=_OP78VA40000000000000
+Content-Type: Text/Html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://ww=
+w.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns=3D"http://www.w3.org/1999/xhtml" xmlns:rn=3D"http://schemas.r=
+ightnow.com/crm/document">
+<head>
+<title></title>
+<base href=3D"http://norwegian.custhelp.com" />
+                                                                    =20
+</head>
+<body>
+
+<div title=3D"rntmarker_40558" id=3D"rntmarker_40558_3CPoG8Q1zC0j">
+
+<table style=3D"FONT-FAMILY: Segoe UI, Verdana, sans-serif" cellspacing=3D=
+"0" cellpadding=3D"0" width=3D"610" align=3D"center" border=3D"1">
+<tbody>
+<tr>
+<td bgcolor=3D"#F5F5F5"><br />
+
+<img alt=3D"Image" height=3D"67" src=3D"https://www.norwegian.com/globala=
+ssets/global/global/customerservice/logo/norwegian_headernew.jpg" width=3D=
+"580" />
+
+<hr />
+
+<div style=3D"font-size: 12pt; border: 1px solid #CCC; background-color: =
+#E0EAD8">Response <span style=3D"FONT-SIZE: 10pt; COLOR: #4f4f4f">(15/03/=
+2020 09:32)</span></div>
+<div style=3D"font-size: 12pt; border: 1px solid #BBB;">
+<div>
+<br />
+Vi takker for din t=C3=A5lmodighet.<br />
+<br />
+Med vennlig hilsen,<br />
+<span>Customer Care</span></span></div>
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<br />
+Date created: 07/03/2020 14:31<br />
+Date Last Updated: 15/03/2020 09:32
+<hr />
+
+
+<br />
+
+<p>Kind regards, Norwegian</p>
+<p>Web: <a style=3D"TEXT-DECORATION: underline" href=3D"http://www.norweg=
+ian.com">norwegian.com</a><br />
+Follow us on <a style=3D"TEXT-DECORATION: underline" href=3D"https://www.=
+facebook.com/flynorwegian">Facebook</a></p>
+
+<br />
+
+<br />
+=C2=A0=C2=A0</td>
+</tr>
+</tbody>
+</table>
+<img alt=3D"" height=3D"1" width=3D"1" style=3D"display: none" src=3D"htt=
+ps://norwegian.custhelp.com/rd/AvPwaQoeDv8S~dlsGhEe~yL587cq1i75Mv8v~zj~PP=
+~m.gif"/> <div id=3D"checksum" align=3D"right"><span style=3D"font-size: =
+1pt">
+[---001:000423:40558---]
+</span></div>
+</div>
+</body>
+</html>
+
+--------------Boundary-00=_OP78VA40000000000000--

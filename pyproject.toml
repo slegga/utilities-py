@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "utilities-perl-py"
+version = "0.1.0"
+description = "Python port of the Perl 'utilities-perl' repo: home-made utility/backup CLI scripts and libraries."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "slegga" }]
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+alert = "utilities_perl.cli:cmd_alert"
+transform = "utilities_perl.cli:cmd_transform"
+dump-email-hash = "utilities_perl.cli:cmd_dump_email_hash"
+file-forwarder = "utilities_perl.cli:cmd_file_forwarder"
+file-rights-debug = "utilities_perl.cli:cmd_file_rights_debug"
+unixtid = "utilities_perl.cli:cmd_unixtid"
+b64d = "utilities_perl.cli:cmd_b64d"
+winord = "utilities_perl.cli:cmd_winord"
+
+[tool.hatch.build.targets.wheel]
+packages = ["utilities_perl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

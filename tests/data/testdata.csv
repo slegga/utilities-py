@@ -1,0 +1,3 @@
+url,username,password,totp,extra,name,grouping,fav
+https://10.0.0.23,admin,admin,,,10.0.0.23,unittest,0
+https://www.paypal.com,mr42@example.com,hemmelig,,,paypal.com,unittest,0

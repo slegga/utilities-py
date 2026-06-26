@@ -1,0 +1,300 @@
+From root  Sat Aug 10 21:37:34 2019
+Return-Path: <news@lovers2lovers.com>
+Received: from nmspam1.e.nsc.no (nmspam1.e.nsc.no [148.123.163.132])
+	by nmmx10.nsc.no (8.15.2/8.15.2) with ESMTPS id x7AJbUVc054160
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-SHA256 bits=256 verify=NOT)
+	for <steihamm@online.no>; Sat, 10 Aug 2019 21:37:33 +0200
+Received: from mail.lovers2lovers.com (mail.lovers2lovers.com [173.255.203.175])
+	by nmspam1.e.nsc.no  with ESMTP id x7AJbQph000918-x7AJbQpj000918
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO)
+	for <steihamm@online.no>; Sat, 10 Aug 2019 21:37:30 +0200
+Message-ID: <2d7e1a68d59650e4b40e71ab3ea1d691.D5EhW7ED.GopL2@lovers2lovers.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=lovers2lovers.com;
+	s=mail; t=1565465846;
+	bh=Kk8xKgzEiAiOrGQUvZXu6ESvb/XYE3mCSZFKJM2xzUk=;
+	h=Date:Subject:From:To:List-Unsubscribe;
+	b=C/YvpJz3z21MqQGVwy6qHmAuhi+z3zO0MpXnCV1q41WbJ80PFHaDQmJJba8trt1rF
+	 15uF9l0g0pSuKZ9HsgQKw99dtqbebV7SFOJEjvoPqSlkTzqFcuB3MfjgQt5GYsbWQ9
+	 skMFsGk5whAlTU/amao2Nx/yQWXId6rKyrsWE57g=
+Date: Sat, 10 Aug 2019 19:37:26 +0000
+Subject: Gillian vil snakke med deg
+From: Lovers2Lovers <news@lovers2lovers.com>
+To: Steihamm <steihamm@online.no>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Precedence: bulk
+List-Unsubscribe: <http://www.lovers2lovers.com/YV2BgriISqSo8Br2Wh8VtEocOALl6AL1D3TW_Nohk2T-xUSrWHb2QotDnEJcu02cvPZr_WKtXfncycNUAvzO3LfzlC5n3puiekms476RYDw=?U4EgC9r3nYbgogF-X9XPyJkLARPuVAWsCtXrV-sfZV9kjNeB6rpb4ML-EqkpD3nWUK2TRMZhPGvMJLVoEXAtzSxl_Qc9T3nrOkpBQ83aFtOqilpM6IEC8qixvRSKMnMIw7K56NziITGop6_8UQpf9OFfFWqOd5f-jGc2XTvlm3orZtJyvMbuyiSyI8ZxDLhf-eiB9xHhoXB0oBxPr3wOlydTlg4Du1ns_IB_cFxi2qjPMVH-b3eKoKE2cYg6J_DO>
+Authentication-Results: nmspam1.e.nsc.no;
+	spf=pass (nsc.no: domain of news@lovers2lovers.com designates 173.255.203.175 as permitted sender) smtp.mailfrom=news@lovers2lovers.com
+X-XClient-IP-Addr: 173.255.203.175
+X-Source-IP: 173.255.203.175
+X-Scanned-By: MIMEDefang 2.78
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<body style=3D"margin:0; padding:0">
+=09<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" style=3D"margin:=
+0 auto; padding:0" width=3D"600px">
+=09=09<tr>
+=09=09=09<td>
+=09=09=09=09<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" backgro=
+und=3D"http://www.lovers2lovers.com/xrJ-LCp1Kv9J2g1qUd7DHQKOaJNv7n3vFV__Zzk=
+NtGkrCNmGpcfKeXeToDyzYQNKBUqAH9ulouR3SNHEX7PPeNKpwYGtkks4-fa6mbUpd6Q=3D?YJb=
+82G_UKoAdhDI5R1RHAGcjd3e9G5P-NJRovtaDxpLlerEk7cjLoqgBU_9pMZXK78FdRysBA7mYRW=
+rlKUVysuYr20NScb8gxmlz-VqI-bJIlKn2FOCOUWqNGZX7jP7croM6sLtS8jpLTQNdErSwe3DiG=
+3XEnYc1Sb9gm0c3qiUhAgkWcRktU0ZEJE-cCBdaeQuk4241xRK-kBs5tRYkYwbp-wKG6dkk1wWG=
+ybOgjxU_0p6hR-DcvyNQi-gV6P4j/header2.png" style=3D"margin:0; text-align:cen=
+ter;"  height=3D"65px" width=3D"100%">
+=09=09=09=09=09<tr><td style=3D"padding-left:30px;"><b style=3D"color:#ffff=
+ff; font:700 24px Verdana, Geneva, sans-serif; -webkit-text-size-adjust:non=
+e;">=F0=9F=92=9CLovers2Lovers=F0=9F=92=9E</b></td></tr>
+=09=09=09=09</table>
+=09=09=09</td>
+=09=09</tr>
+=09=09<tr><td>
+=09=09
+=09=09=09=09=09=09
+=09=09=09=09=09=09
+<table width=3D"100%"  b=
+gcolor=3D"#5dade2" style=3D"padding:10px;">
+=09=09=09=09<tr>
+=09=09=09=
+=09=09<td align=3D"center">
+=09=09=09=09=09=09<table width=3D"100%" borde=
+r=3D"0" cellspacing=3D"0" cellpadding=3D"0">
+=09=09=09=09=09=09=09<tr>
+=
+=09=09=09=09=09=09=09=09<td bgcolor=3D"#FFFFFF" height=3D"10"></td>
+=09=
+=09=09=09=09=09=09</tr><tr>
+=09<td bgcolor=3D"#FFFFFF" >
+=09=09<table w=
+idth=3D"600" border=3D"0" align=3D"center" cellpadding=3D"0" cellspacing=3D=
+"0" style=3D"margin-bottom:20px; margin-top:10px;">
+=09=09=09<tr>
+=09=
+=09=09=09<td align=3D"center">
+=09=09=09=09=09<h1 style=3D"font-family: V=
+erdana, Geneva, sans-serif;color:#000000; font-size:24px; margin:0; padding=
+:0;font-weight: 700;">Gillian inviterte deg til =C3=A5 vise sitt fotogaller=
+i</h1>
+=09=09=09=09</td>
+=09=09=09</tr>
+=09=09=09<tr>
+=09=09=09=09<=
+td align=3D"center">
+=09=09=09=09
+=09=09=09=09
+=09=09=09=09=09<table =
+width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"ma=
+rgin-bottom:10px; margin-top:10px;">
+=09=09=09=09=09=09<tr>
+=09=09=09=
+=09=09=09=09<td align=3D"center" style=3D"padding:7px;">
+=09=09=09=09=09=
+=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz0S73lWBv2P65oIgHKw=
+w93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNCcpIsioJpiVcRLr2=
+CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jzwnmMQrVUDh-fHui3io=
+s6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukKUH94ZQJnDWoVq5p1m2=
+HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZmWgIUEfGr2gJuPl5AK3=
+8H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w2kh1CA=3D=3D" targ=
+et=3D"_blank" style=3D"display:block; text-decoration:none; height:185px; w=
+idth:185px;">
+=09=09=09=09=09=09=09=09=09<img src=3D"http://www.lovers2lo=
+vers.com/xrJ-LCp1Kv9J2g1qUd7DHQKOaJNv7n3vFV__ZzkNtGkrCNmGpcfKeXeToDyzYQNKBU=
+qAH9ulouR3SNHEX7PPeNKpwYGtkks4-fa6mbUpd6Q=3D?YJb82G_UKoAdhDI5R1RHAGcjd3e9G5=
+P-NJRovtaDxpLlerEk7cjLoqgBU_9pMZXK78FdRysBA7mYRWrlKUVysuYr20NScb8gxmlz-VqI-=
+bJIlKn2FOCOUWqNGZX7jP7croM6sLtS8jpLTQNdErSwe3DiG3XEnYc1Sb9gm0c3qiUhAgkWcRkt=
+U0ZEJE-cCBdaeQuk4241xRK-kBs5tRYkYwbp-wKG6dkk1wWGybOgjxU_0p6hR-DcvyNQi-gV6P4=
+j/118.jpeg/t" height=3D"100%" border=3D"0" alt=3D"Gillian" />
+=09
+=09=
+=09=09=09=09=09=09=09</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=09=09=
+=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz0S73lWBv2P65oIgHKw=
+w93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNCcpIsioJpiVcRLr2=
+CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jzwnmMQrVUDh-fHui3io=
+s6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukKUH94ZQJnDWoVq5p1m2=
+HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZmWgIUEfGr2gJuPl5AK3=
+8H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w2kh1CA=3D=3D" targ=
+et=3D"_blank" style=3D"color:#2e7eb3; font-size:15px; font-weight:700;">Gil=
+lian</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=09=09=09=09=09<span sty=
+le=3D"font-size:14px;font-family: Verdana, Geneva, sans-serif; color:#fffff=
+f;">
+=09=09=09=09=09=09=09=09=09<a href=3D"http://www.lovers2lovers.com/K=
+f9oaTpz0S73lWBv2P65oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1=
+neRbel7nNCcpIsioJpiVcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-=
+y3OM8jzwnmMQrVUDh-fHui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOA=
+mRQFukKUH94ZQJnDWoVq5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7Q=
+bNLfkZmWgIUEfGr2gJuPl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwy=
+y7Wud3w2kh1CA=3D=3D" style=3D"display:block; text-decoration:none; color:#f=
+fffff; width:185px; line-height:50px;  background-color:#5dade2; margin-top=
+:15px;">
+=09=09=09=09=09=09=09=09=09=09<b style=3D"color:#ffffff;">VIS ME=
+LDING</b>
+=09=09=09=09=09=09=09=09=09</a>
+=09=09=09=09=09=09=09=09</spa=
+n>
+=09=09=09=09=09=09=09</td>
+=09=09=09=09=09=09=09
+=09=09=09=09=09=
+=09=09
+=09=09=09=09=09=09=09<td align=3D"center" style=3D"padding:7px;">=
+
+=09=09=09=09=09=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz=
+0S73lWBv2P65oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7=
+nNCcpIsioJpiVcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jz=
+wnmMQrVUDh-fHui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukK=
+UH94ZQJnDWoVq5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZm=
+WgIUEfGr2gJuPl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w=
+2kh1CA=3D=3D" target=3D"_blank" style=3D"display:block; text-decoration:non=
+e; height:185px; width:185px;">
+=09=09=09=09=09=09=09=09=09<img src=3D"ht=
+tp://www.lovers2lovers.com/xrJ-LCp1Kv9J2g1qUd7DHQKOaJNv7n3vFV__ZzkNtGkrCNmG=
+pcfKeXeToDyzYQNKBUqAH9ulouR3SNHEX7PPeNKpwYGtkks4-fa6mbUpd6Q=3D?YJb82G_UKoAd=
+hDI5R1RHAGcjd3e9G5P-NJRovtaDxpLlerEk7cjLoqgBU_9pMZXK78FdRysBA7mYRWrlKUVysuY=
+r20NScb8gxmlz-VqI-bJIlKn2FOCOUWqNGZX7jP7croM6sLtS8jpLTQNdErSwe3DiG3XEnYc1Sb=
+9gm0c3qiUhAgkWcRktU0ZEJE-cCBdaeQuk4241xRK-kBs5tRYkYwbp-wKG6dkk1wWGybOgjxU_0=
+p6hR-DcvyNQi-gV6P4j/239.jpeg" height=3D"100%" border=3D"0" alt=3D"Daphne" /=
+>
+=09=09=09=09=09=09=09=09</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=
+=09=09=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz0S73lWBv2P65=
+oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNCcpIsioJpi=
+VcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jzwnmMQrVUDh-f=
+Hui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukKUH94ZQJnDWoV=
+q5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZmWgIUEfGr2gJu=
+Pl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w2kh1CA=3D=3D=
+" target=3D"_blank" style=3D"color:#2e7eb3; font-size:15px; font-weight:700=
+;">Daphne</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=09=09=09=09=09<spa=
+n style=3D"font-size:14px;font-family: Verdana, Geneva, sans-serif; color:#=
+ffffff; ">
+=09=09=09=09=09=09=09=09=09<a href=3D"http://www.lovers2lovers=
+.com/Kf9oaTpz0S73lWBv2P65oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a=
+7PC4y1neRbel7nNCcpIsioJpiVcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49Wf=
+Ukiun-y3OM8jzwnmMQrVUDh-fHui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YF=
+GxHXOAmRQFukKUH94ZQJnDWoVq5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz=
+3O9k7QbNLfkZmWgIUEfGr2gJuPl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbA=
+FwDOwyy7Wud3w2kh1CA=3D=3D" target=3D"_blank" style=3D"display:block; text-d=
+ecoration:none; background-color:#5dade2; margin-top:15px; color:#ffffff; w=
+idth:185px; line-height:50px;">
+=09=09=09=09=09=09=09=09=09=09<b style=3D=
+"color:#ffffff;">VIS MELDING</b>
+=09=09=09=09=09=09=09=09=09</a>
+=09=09=
+=09=09=09=09=09=09</span>
+=09=09=09=09=09=09=09</td>
+=09=09=09=09=09=09=
+=09
+=09=09=09=09=09=09=09<td align=3D"center" style=3D"padding:7px;">
+=
+=09=09=09=09=09=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz0S7=
+3lWBv2P65oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNC=
+cpIsioJpiVcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jzwnm=
+MQrVUDh-fHui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukKUH9=
+4ZQJnDWoVq5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZmWgI=
+UEfGr2gJuPl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w2kh=
+1CA=3D=3D" target=3D"_blank" style=3D"display:block; text-decoration:none; =
+height:185px; width:185px;">
+=09=09=09=09=09=09=09=09=09<img src=3D"http:=
+//www.lovers2lovers.com/xrJ-LCp1Kv9J2g1qUd7DHQKOaJNv7n3vFV__ZzkNtGkrCNmGpcf=
+KeXeToDyzYQNKBUqAH9ulouR3SNHEX7PPeNKpwYGtkks4-fa6mbUpd6Q=3D?YJb82G_UKoAdhDI=
+5R1RHAGcjd3e9G5P-NJRovtaDxpLlerEk7cjLoqgBU_9pMZXK78FdRysBA7mYRWrlKUVysuYr20=
+NScb8gxmlz-VqI-bJIlKn2FOCOUWqNGZX7jP7croM6sLtS8jpLTQNdErSwe3DiG3XEnYc1Sb9gm=
+0c3qiUhAgkWcRktU0ZEJE-cCBdaeQuk4241xRK-kBs5tRYkYwbp-wKG6dkk1wWGybOgjxU_0p6h=
+R-DcvyNQi-gV6P4j/51.jpeg" height=3D"100%" border=3D"0" alt=3D"Laci" />
+=
+=09=09=09=09=09=09=09=09</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=09=
+=09=09=09=09<a href=3D"http://www.lovers2lovers.com/Kf9oaTpz0S73lWBv2P65oIg=
+HKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNCcpIsioJpiVcR=
+Lr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun-y3OM8jzwnmMQrVUDh-fHui=
+3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXOAmRQFukKUH94ZQJnDWoVq5p=
+1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7QbNLfkZmWgIUEfGr2gJuPl5=
+AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOwyy7Wud3w2kh1CA=3D=3D" t=
+arget=3D"_blank" style=3D"color:#2e7eb3; font-size:15px; font-weight:700;">=
+Laci</a>
+=09=09=09=09=09=09=09=09<br>
+=09=09=09=09=09=09=09=09<span sty=
+le=3D"font-size:14px;font-family: Verdana, Geneva, sans-serif; color:#fffff=
+f; ">
+=09=09=09=09=09=09=09=09=09<a href=3D"http://www.lovers2lovers.com/=
+Kf9oaTpz0S73lWBv2P65oIgHKww93d1nzV8DN2WQHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y=
+1neRbel7nNCcpIsioJpiVcRLr2CewLVQ=3D?D6Ag-GK44a0Hb6ZPsCfSI1ff74BdOv49WfUkiun=
+-y3OM8jzwnmMQrVUDh-fHui3ios6DwTzhkEdZ__zmicRRmnGMvYhnXERHwawzwZfqEL_YFGxHXO=
+AmRQFukKUH94ZQJnDWoVq5p1m2HQrMZ-auz0fiZxPnU_i9zQdC_WO_NIj-QizBwv2PQdjz3O9k7=
+QbNLfkZmWgIUEfGr2gJuPl5AK38H4GQ1bbeTqZRDvBDoO0HyaFMKBe8XOcrFxHTN6QlvbAFwDOw=
+yy7Wud3w2kh1CA=3D=3D" target=3D"_blank" style=3D"display:block; text-decora=
+tion:none; background-color:#5dade2; margin-top:15px; color:#ffffff; width:=
+185px; line-height:50px;">
+=09=09=09=09=09=09=09=09=09=09<b style=3D"colo=
+r:#ffffff;">VIS MELDING</b>
+=09=09=09=09=09=09=09=09=09</a>
+=09=09=09=
+=09=09=09=09=09</span>
+=09=09=09=09=09=09=09</td>
+=09=09=09=09=09=09=09=
+
+=09=09=09=09=09=09=09
+=09=09=09=09=09=09</tr>
+
+=09=09=09=09=09</ta=
+ble>
+=09=09=09=09=09
+=09
+=09=09=09=09=09
+=09=09=09=09</td>
+=09=09=
+=09</tr>
+
+=09=09</table>
+=09</td>
+</tr>
+
+=09=09=09=09=09=09</ta=
+ble>
+=09=09=09=09=09</td>
+=09=09=09=09</tr>
+=09
+=09=09=09</table>=
+
+
+=09=09=09=09=09=09
+=09=09=09=09=09=09
+
+=09=09</tr></td>
+=09=09<tr>
+=09=09=09<td>
+=09=09=09=09<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" backgro=
+und=3D"http://www.lovers2lovers.com/xrJ-LCp1Kv9J2g1qUd7DHQKOaJNv7n3vFV__Zzk=
+NtGkrCNmGpcfKeXeToDyzYQNKBUqAH9ulouR3SNHEX7PPeNKpwYGtkks4-fa6mbUpd6Q=3D?YJb=
+82G_UKoAdhDI5R1RHAGcjd3e9G5P-NJRovtaDxpLlerEk7cjLoqgBU_9pMZXK78FdRysBA7mYRW=
+rlKUVysuYr20NScb8gxmlz-VqI-bJIlKn2FOCOUWqNGZX7jP7croM6sLtS8jpLTQNdErSwe3DiG=
+3XEnYc1Sb9gm0c3qiUhAgkWcRktU0ZEJE-cCBdaeQuk4241xRK-kBs5tRYkYwbp-wKG6dkk1wWG=
+ybOgjxU_0p6hR-DcvyNQi-gV6P4j/footer2.png" style=3D"margin:0; margin-top:20p=
+x;" bgcolor=3D"#4267b2" height=3D"66px" width=3D"100%">
+=09=09=09=09=09<tr><td><center style=3D"width: 100%; color: #ffffff; font:7=
+00 18px Verdana, Geneva, sans-serif; -webkit-text-size-adjust:none;">Steiha=
+mm, Hvis du vil abonnere og stoppe =C3=A5 motta denne e-postadressen   <a h=
+ref=3D"http://www.lovers2lovers.com/Kf9oaTpz0S73lWBv2P65oIgHKww93d1nzV8DN2W=
+QHrJNcLPigxFwsDD16zJY0a4dg-6X7a7PC4y1neRbel7nNCcpIsioJpiVcRLr2CewLVQ=3D?2rU=
+Cbht1ektgs-4Uvo-XRAmxYuGEM1GbYGV8NhI4gsG4JSrSOpOrNg9RtbNNiF3ZzCcXuBErlfKfLL=
+_p2jUaOe3vFu1k5mmN-RL7HGccfGDToQ6EYS2D3XTGzBkPSK_Txhl1IfhWnpZsxsS2jr1U0djzj=
+SPBjpGyYf3SA3Vxrb_xkYzJJS2budvna_dmuoza487JJVOtWCAyB8NGkNl0YdVKEi_rirwyk7Jz=
+O1a9wwLRwGUeF7ZRQt3YANHBINAb" target=3D"_blank">klikk her</a><br /><br>Love=
+rInternational Mobile, King William Street 658, 25482 Port, Vanuatu</center=
+></td></tr>
+=09=09=09=09</table>
+=09=09=09</td>
+=09=09</tr>
+=09</table>
+</body>
+</html>
