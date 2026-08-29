@@ -16,6 +16,7 @@ from .prettyprint import (
     print_hashes,
     set_array_item,
 )
+from .rpg_common import yaml_walk
 from .transform import Transform
 
 __version__ = "0.1.0"
@@ -33,5 +34,6 @@ __all__ = [
     "print_arrays",
     "print_hashes",
     "set_array_item",
+    "yaml_walk",
     "__version__",
 ]
