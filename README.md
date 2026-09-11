@@ -64,6 +64,71 @@ Not ported: `bin/template.pl` and `SH::Code::Template*` (a Perl-source code
 generator tied to the Applify/ScriptX framework), and the `git-*`/`prove-all`/
 `spellchecker` developer helpers.
 
+## rpg_common-pakken
+
+Felles Python-logikk for `mm-rpg` og `osr-rpg`, portert fra Perl.
+Pakken er installerbart via `uv` og eksponerer:
+
+### Templatehjelpere (`rpg_common.template`)
+
+Rene Python-funksjoner ment å *brukes i* Jinja2-maler (ikke Jinja2-filtre).
+Funksjonene kalles fra malene for å generere tabeller, lister og sortering.
+
+| Funksjon | Beskrivelse |
+| --- | --- |
+| `ctable(data, category, ...)` | Genererer Markdown-tabell fra en kategori med data |
+| `clist(data, category, ...)` | Genererer norsk sammenkjedet liste (f.eks. "A, B og C") |
+| `mytextsort(items, rekkefoelge)` | Sorterer nøkkelord etter definert rekkefølge |
+| `myrowsort(data, rekkefoelge, ...)` | Sorterer rader etter kolonne eller rekkefølge |
+| `gterning(number, offset, range_)` | Genererer terningområde-tekst (f.eks. "1-3") |
+| `load_rekkefoelge(path)` | Laster `rekkefoelge.list.yml`-fil |
+
+### YAML-til-tabell (`rpg_common.yaml_walk`)
+
+| Funksjon | Beskrivelse |
+| --- | --- |
+| `get_tablename_keys_data(tablename, ret, data, ...)` | Rekursiv konvertering av nøstet YAML til relasjonelt skjema |
+
+### Brukseksempel
+
+```python
+from rpg_common import ctable, clist, mytextsort, gterning
+
+evner = [
+    {"navn": "styrke", "pris": 2},
+    {"navn": "sanse", "pris": 1},
+    {"navn": "mana", "pris": 2},
+]
+
+# Sorter etter rekkefølge
+rekkefoelge = ["styrke", "sanse", "mana"]
+sortert = mytextsort([e["navn"] for e in evner], rekkefoelge)
+# => ["styrke", "sanse", "mana"]
+
+# Sammenkjedet liste
+liste = clist(evner, "evner")
+# => "styrke, sanse og mana"
+
+# Markdown-tabell
+tabell = ctable(evner, "evner", columns=["navn", "pris"])
+# => |evner|pris|
+#    |-|-|
+#    |styrke|2|
+#    |sanse|1|
+#    |mana|2|
+
+# Terningområde
+offset, text = gterning(1, 1, 3)
+# => (4, "1-3")
+```
+
+### Path-basert installasjon fra eksternt repo
+
+```bash
+# I mm-rpg eller osr-rpg:
+uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
+```
+
 ## Design conventions
 
 Carried over from `utilities-perl/AGENTS.md`:
