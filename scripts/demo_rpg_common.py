@@ -14,7 +14,6 @@ Kjøring utenfra repoet:
     uv run --script --with "utilities-perl-py @ file://$PWD/.." scripts/demo_rpg_common.py
 """
 
-
 from rpg_common import clist, ctable, get_tablename_keys_data, gterning, mytextsort
 
 # Eksempel-data (tilsvarende det som ville kommet fra YAML-filer)

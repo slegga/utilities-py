@@ -76,11 +76,21 @@ class PassCodeExporter(Exporter):
                     if sum(1 for v in nr.values() if v is not None) == 2:
                         continue
                     raise ValueError("Missing file path")
-                if re.search(r"jobb|Business", nr["filepath"], re.I):
+                if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
                     nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])
                 formatted.append(nr)
         elif data and "SYSTEM" in data[0]:
-            accepted = {"id", "DOMENE", "GRUPPERING", "SYSTEM", "URL", "BRUKER", "PASSORD", "BESKRIVELSE", "BYTTE"}
+            accepted = {
+                "id",
+                "DOMENE",
+                "GRUPPERING",
+                "SYSTEM",
+                "URL",
+                "BRUKER",
+                "PASSORD",
+                "BESKRIVELSE",
+                "BYTTE",
+            }
             for row in data:
                 for key in row:
                     if key not in accepted:

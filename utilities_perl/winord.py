@@ -8,13 +8,14 @@ on how many there are (or ``--split``/``--horizontal``), then moves them.
 from __future__ import annotations
 
 import argparse
-import math
 import re
 import subprocess
 
 
 class WinOrd:
-    def __init__(self, split: int | None = None, horizontal: bool = False, info: bool = False) -> None:
+    def __init__(
+        self, split: int | None = None, horizontal: bool = False, info: bool = False
+    ) -> None:
         self.split = split
         self.horizontal = horizontal
         self.info = info
@@ -26,9 +27,9 @@ class WinOrd:
 
     def get_info(self):
         resraw = subprocess.run(
-            "wmctrl -d", shell=True, capture_output=True, text=True
+            "wmctrl -d", shell=True, capture_output=True, text=True, check=False
         ).stdout
-        active = next((l for l in resraw.splitlines() if "*" in l), "")
+        active = next((row for row in resraw.splitlines() if "*" in row), "")
         m = re.search(r"WA:.+?(\d+)x(\d+)", active)
         x_res, y_res = (int(m.group(1)), int(m.group(2))) if m else (0, 0)
         self.x_min = 0
@@ -37,9 +38,9 @@ class WinOrd:
         self.y_max = y_res - 36
 
         wmctrl = subprocess.run(
-            "wmctrl -Gl", shell=True, capture_output=True, text=True
+            "wmctrl -Gl", shell=True, capture_output=True, text=True, check=False
         ).stdout
-        rows = [re.split(r"\s+", line, 7) for line in wmctrl.splitlines()]
+        rows = [re.split(r"\s+", line, maxsplit=7) for line in wmctrl.splitlines()]
         screens: list[dict] = []
         for r in sorted(rows, key=lambda r: r[7] if len(r) > 7 else "", reverse=True):
             if len(r) < 8 or int(r[1]) == -1:
@@ -63,7 +64,7 @@ class WinOrd:
                     f"{value['x_pos']},{value['y_pos']},{value['x_size']},{value['y_size']}"
                 )
                 print(resize)
-                subprocess.run(resize, shell=True)
+                subprocess.run(resize, shell=True, check=False)
             i += 1
 
     def main(self):
@@ -94,7 +95,9 @@ class WinOrd:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="winord", description="Order windows in the window manager")
+    parser = argparse.ArgumentParser(
+        prog="winord", description="Order windows in the window manager"
+    )
     parser.add_argument("--info", action="store_true", help="Show windows info")
     parser.add_argument("--split", type=int, help="Set number of windows")
     parser.add_argument("--horizontal", action="store_true", help="Only split on a row")

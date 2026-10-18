@@ -66,11 +66,7 @@ def mytextsort(items: Sequence[str], rekkefoelge: Sequence[str]) -> list[str]:
         try:
             idx = rekkefoelge.index(item)
         except ValueError:
-            idx = (
-                SORT_FALLBACK_OFFSET + ord(item[0])
-                if item
-                else SORT_FALLBACK_OFFSET
-            )
+            idx = SORT_FALLBACK_OFFSET + ord(item[0]) if item else SORT_FALLBACK_OFFSET
         lookup[item] = idx
     return sorted(items, key=lambda x: lookup[x])
 
@@ -173,9 +169,7 @@ def ctable(
                 row[key] = func(category, row)
 
     lines: list[str] = []
-    header = "|".join(
-        [""] + [category if c == "navn" else c for c in columns] + [""]
-    )
+    header = "|".join([""] + [category if c == "navn" else c for c in columns] + [""])
     sep = "|".join([""] + ["-"] * len(columns) + [""])
     lines.append(header)
     lines.append(sep)
@@ -188,7 +182,7 @@ def ctable(
             if callable(val):
                 val = val(category, row)
             values.append(str(val) if val is not None else " ")
-        lines.append("|".join([""] + values + [""]))
+        lines.append("|".join(["", *values, ""]))
 
     return "\n".join(lines)
 
@@ -218,10 +212,7 @@ def clist(
         Sammenkjedet liste, f.eks. ``"A, B og C"``.
     """
     names = [item["navn"] for item in data]
-    if rekkefoelge is not None:
-        sorted_names = mytextsort(names, rekkefoelge)
-    else:
-        sorted_names = sorted(names)
+    sorted_names = mytextsort(names, rekkefoelge) if rekkefoelge is not None else sorted(names)
     if len(sorted_names) == 1:
         return sorted_names[0]
     last = sorted_names[-1]

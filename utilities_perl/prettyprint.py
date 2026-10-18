@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any, Mapping, MutableSequence, Sequence
+from collections.abc import Mapping, MutableSequence, Sequence
+from typing import Any
 
 
 def print_arrays(rows: Sequence[Sequence[Any]]) -> str:
@@ -20,7 +21,9 @@ def print_arrays(rows: Sequence[Sequence[Any]]) -> str:
     return "".join("\t".join(str(c) for c in row) + "\n" for row in rows)
 
 
-def print_hashes(rows: Sequence[Mapping[str, Any]], options: Mapping[str, Any] | None = None) -> str:
+def print_hashes(
+    rows: Sequence[Mapping[str, Any]], options: Mapping[str, Any] | None = None
+) -> str:
     """Render an array of dicts as an aligned table with a header row.
 
     ``options['columns']`` may give a list of columns that should appear first.
@@ -47,7 +50,10 @@ def print_hashes(rows: Sequence[Mapping[str, Any]], options: Mapping[str, Any] |
 
     out = "".join(f"{key:<{size[key]}} " for key in keys) + "\n"
     for row in rows:
-        out += "".join(f"{str(row.get(key, '') if row.get(key) is not None else ''):<{size[key]}} " for key in keys)
+        out += "".join(
+            f"{row.get(key, '') if row.get(key) is not None else ''!s:<{size[key]}} "
+            for key in keys
+        )
         out += "\n"
     return out
 

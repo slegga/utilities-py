@@ -11,7 +11,6 @@ from __future__ import annotations
 import getpass
 import re
 import sys
-from typing import Pattern, Sequence
 
 _answer_defaults: dict[str, str] = {}
 

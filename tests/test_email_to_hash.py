@@ -1,8 +1,6 @@
 import os
 import re
 
-import pytest
-
 from utilities_perl.email_to_hash import EmailToHash
 
 HEADER = """From root  Sun Mar 15 09:32:20 2020
@@ -15,7 +13,8 @@ Reply-To: "Norwegian Customer Relations"
     <customer.relations@norwegian.com>
 To: steihamm@online.no
 Date: Sun, 15 Mar 2020 09:32:12 +0100 (CET)
-Subject: Cancelled flight claim for booking reference MJGH76 - Flight  DY1817 LPA-OSL 24.02.20 [Incident: 200307-001033]
+Subject: Cancelled flight claim for booking reference MJGH76 - Flight  DY1817 LPA-OSL 24.02.20
+  [Incident: 200307-001033]
 """
 
 

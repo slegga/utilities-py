@@ -8,7 +8,6 @@ the runtime config for a named app, including the hypnotoad section.
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +36,7 @@ class GetCommonConfig:
         """Return the merged app config for the moniker derived from ``filename``."""
         cfg = cfg or {}
         moniker = Path(filename).name
-        if moniker.endswith(".pl"):
-            moniker = moniker[: -len(".pl")]
+        moniker = moniker.removesuffix(".pl")
         file = self.config_dir / "mojoapp.yml"
         if not file.exists():
             raise FileNotFoundError(f"Common config file {file} does not exists")
@@ -53,13 +51,10 @@ class GetCommonConfig:
             raise ValueError(f"Missing mojo_log_path in common_config file {file}")
 
         if moniker in (raw.get("web_services") or {}):
-            for key, value in raw["web_services"][moniker].items():
-                ret[key] = value
+            ret.update(raw["web_services"][moniker])
 
         ret["moniker"] = moniker
-        ret["mojo_log_path"] = str(
-            Path(raw["common_config"]["mojo_log_path"]) / f"{moniker}.log"
-        )
+        ret["mojo_log_path"] = str(Path(raw["common_config"]["mojo_log_path"]) / f"{moniker}.log")
         secrets_dir = os.environ.get("COMMON_CONFIG_DIR") or os.path.join(
             os.environ.get("HOME", ""), "etc"
         )
@@ -87,9 +82,7 @@ class GetCommonConfig:
                 else:
                     ret[key] = value
         else:
-            raise ValueError(
-                f"Missing config in file {cfile}:  web_services:->{script}:"
-            )
+            raise ValueError(f"Missing config in file {cfile}:  web_services:->{script}:")
         rundir = Path(os.environ.get("HOME", "")) / "run"
         rundir.mkdir(parents=True, exist_ok=True)
         ret["pid_file"] = str(rundir / f"{script}.pid")

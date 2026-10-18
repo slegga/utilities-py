@@ -67,9 +67,7 @@ class CSVLastPass:
                 if len(hashes[-1]) == len(keys):
                     inrow = False
                 else:
-                    raise ValueError(
-                        f"Keys: {'-'.join(hashes[-1].keys())} == {'-'.join(keys)}"
-                    )
+                    raise ValueError(f"Keys: {'-'.join(hashes[-1].keys())} == {'-'.join(keys)}")
                 continue
 
             if inquote:
@@ -79,10 +77,10 @@ class CSVLastPass:
                 if not close_re.search(line):
                     hashes[-1][keys[i]] = hashes[-1].get(keys[i], "") + line + "\n"
                 else:
-                    data, line = close_re.split(line, 1)
+                    data, rest_line = close_re.split(line, 1)
                     hashes[-1][keys[i]] = hashes[-1].get(keys[i], "") + data
                     i += 1
-                    vals = line.split(sep)
+                    vals = rest_line.split(sep)
                     for j in range(i, len(keys)):
                         hashes[-1][keys[j]] = vals[j - i]
                     inquote = False
@@ -119,15 +117,14 @@ class CSVLastPass:
                     hashes.append(row)
                     inquote = False
                     continue
-                else:
-                    inquote = True
-                    rest, data = re.split(f"{re.escape(sep)}?{re.escape(quote)}", line, maxsplit=1)
-                    vals = rest.split(sep)
-                    for idx, val in enumerate(vals):
-                        row[keys[idx]] = val
-                    row[keys[len(vals)]] = row.get(keys[len(vals)], "") + data + "\n"
-                    hashes.append(row)
-                    continue
+                inquote = True
+                rest, data = re.split(f"{re.escape(sep)}?{re.escape(quote)}", line, maxsplit=1)
+                vals = rest.split(sep)
+                for idx, val in enumerate(vals):
+                    row[keys[idx]] = val
+                row[keys[len(vals)]] = row.get(keys[len(vals)], "") + data + "\n"
+                hashes.append(row)
+                continue
 
             vals = _perl_split(line, sep)
             if len(keys) == len(vals):

@@ -11,9 +11,7 @@ class TestGetTablenameKeysData:
     def test_single_hash_with_scalar_values(self):
         """Enkelt HASH med skalare verdier."""
         r: dict = {}
-        get_tablename_keys_data(
-            "sesjon", r, {"tittel": "Atlantis", "tidsalder": "Gresk oldtid"}
-        )
+        get_tablename_keys_data("sesjon", r, {"tittel": "Atlantis", "tidsalder": "Gresk oldtid"})
 
         assert "sesjon" in r
         assert sorted(r["sesjon"]["fields"]) == [
@@ -48,9 +46,7 @@ class TestGetTablenameKeysData:
             "status",
             "var",
         ]
-        assert r["info"]["data"] == [
-            {"id": 0, "id_sesjon": 0, "var": "natt", "status": "ferdig"}
-        ]
+        assert r["info"]["data"] == [{"id": 0, "id_sesjon": 0, "var": "natt", "status": "ferdig"}]
         assert r["sesjon"]["data"][0]["id"] == 0
         assert r["sesjon"]["data"][0]["id_root"] == 1
 
@@ -154,12 +150,8 @@ class TestGetTablenameKeysData:
     def test_fields_deduplicated_across_calls(self):
         """Felt deduperes på tvers av kall."""
         r: dict = {}
-        get_tablename_keys_data(
-            "sesjon", r, {"tittel": "A", "tidsalder": "x"}, "root", 1
-        )
-        get_tablename_keys_data(
-            "sesjon", r, {"tittel": "B", "tidsalder": "y"}, "root", 1
-        )
+        get_tablename_keys_data("sesjon", r, {"tittel": "A", "tidsalder": "x"}, "root", 1)
+        get_tablename_keys_data("sesjon", r, {"tittel": "B", "tidsalder": "y"}, "root", 1)
 
         assert len(r["sesjon"]["data"]) == 2
         seen: dict[str, int] = {}
@@ -180,6 +172,4 @@ class TestGetTablenameKeysData:
     def test_errors_array_of_array(self):
         """TypeError når data inneholder array-av-array."""
         with pytest.raises(TypeError, match="Unsupported ARRAY value"):
-            get_tablename_keys_data(
-                "t", {}, {"weird": [[1, 2], [3, 4]]}, "root", 1
-            )
+            get_tablename_keys_data("t", {}, {"weird": [[1, 2], [3, 4]]}, "root", 1)

@@ -135,6 +135,4 @@ def _walk_list(
         # Top-level list of scalars: no-op (matches Perl behaviour).
         return
     else:
-        raise TypeError(
-            f"Unsupported top-level ARRAY: ARRAY-of-{type(first).__name__}"
-        )
+        raise TypeError(f"Unsupported top-level ARRAY: ARRAY-of-{type(first).__name__}")

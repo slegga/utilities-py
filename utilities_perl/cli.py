@@ -26,10 +26,10 @@ from .transform import Transform
 
 def cmd_alert(argv: list[str] | None = None) -> int:
     """alert - pipe text into stdin to send a GroupMe message."""
-    parser = argparse.ArgumentParser(
-        prog="alert", description="Notify with a GroupMe account bot."
+    parser = argparse.ArgumentParser(prog="alert", description="Notify with a GroupMe account bot.")
+    parser.add_argument(
+        "--dryrun", action="store_true", help="Print to screen instead of doing changes"
     )
-    parser.add_argument("--dryrun", action="store_true", help="Print to screen instead of doing changes")
     parser.add_argument("--ignore", help="Ignore alerting if regexp match")
     args = parser.parse_args(argv)
 
@@ -58,7 +58,9 @@ def cmd_transform(argv: list[str] | None = None) -> int:
         prog="transform",
         description="Read from source write to destination. Transform data to another format.",
     )
-    parser.add_argument("--dryrun", action="store_true", help="Print to screen instead of doing changes")
+    parser.add_argument(
+        "--dryrun", action="store_true", help="Print to screen instead of doing changes"
+    )
     parser.add_argument("--source_file", help="Give the source file")
     parser.add_argument("--source_type", help="Give the source type")
     parser.add_argument("--source_table", help="Give the source table")
@@ -125,14 +127,13 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
             if not os.path.isdir(destination):
                 if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
                     raise SystemExit(f"Destination: {destination} is not a directory.")
-                subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True)
+                subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
                 if not os.path.isdir(destination):
-                    raise SystemExit(f"Destination {destination} is not a directory or did not mount.")
-            all_files = [
-                str(p)[len(source_dir):]
-                for p in Path(source_dir).rglob("*")
-            ]
-            done_files = {name: 1 for name in (done.get(source_dir) or [])}
+                    raise SystemExit(
+                        f"Destination {destination} is not a directory or did not mount."
+                    )
+            all_files = [str(p)[len(source_dir) :] for p in Path(source_dir).rglob("*")]
+            done_files = dict.fromkeys(done.get(source_dir) or [], 1)
             candidates = [f for f in all_files if done_files.get(f) != 1]
             for cpfile in candidates:
                 src = source_dir + cpfile
@@ -191,19 +192,25 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
                         links.append(Path(link))
                         break
             first = False
-            result.append({
-                "name": str(tf),
-                "user": pwd.getpwuid(st.st_uid).pw_name if st else "",
-                "group": grp.getgrgid(st.st_gid).gr_name if st else "",
-                "user_rwx": user_rwx,
-                "group_rwx": group_rwx,
-                "other_rwx": other_rwx,
-                "exists": int(bool(exists)),
-            })
+            result.append(
+                {
+                    "name": str(tf),
+                    "user": pwd.getpwuid(st.st_uid).pw_name if st else "",
+                    "group": grp.getgrgid(st.st_gid).gr_name if st else "",
+                    "user_rwx": user_rwx,
+                    "group_rwx": group_rwx,
+                    "other_rwx": other_rwx,
+                    "exists": int(bool(exists)),
+                }
+            )
             if str(tf) == "/":
                 break
             tf = tf.parent
-        print(print_hashes(result, {"columns": ["name", "user", "group", "user_rwx", "group_rwx", "other_rwx"]}))
+        print(
+            print_hashes(
+                result, {"columns": ["name", "user", "group", "user_rwx", "group_rwx", "other_rwx"]}
+            )
+        )
     return 0
 
 

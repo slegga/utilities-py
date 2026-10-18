@@ -32,18 +32,14 @@ class PassCode:
         """Run an OS command, returning ``(stdout, stderr)``."""
         config = config or {}
         cmd = command if isinstance(command, (list, tuple)) else command.split(" ")
-        proc = subprocess.run(
-            cmd, input=stdin, capture_output=True, text=True
-        )
+        proc = subprocess.run(cmd, input=stdin, capture_output=True, text=True, check=False)
         stdout, stderr = proc.stdout, proc.stderr.rstrip("\n")
         if stderr:
             if "is not in the password store." in stderr:
                 stdout = None
             elif re.match(r"^gpg: (kryptert med|encrypted with)", stderr):
                 stderr = ""
-            elif re.search(r"bash: warning: setlocale", stderr):
-                pass
-            elif config.get("continue_on_error"):
+            elif re.search(r"bash: warning: setlocale", stderr) or config.get("continue_on_error"):
                 pass
             else:
                 raise RuntimeError(f"OS command error: {' '.join(cmd)}\n{stderr}")
@@ -51,9 +47,7 @@ class PassCode:
 
     def get_files(self, regex: str | None = None) -> dict[str, str]:
         """Return ``{friendly_name: real_name}`` from the passcode index."""
-        out, _ = self.xsystem(
-            ["gpg", "--decrypt", self.password_dir + "/.passcode.gpg"]
-        )
+        out, _ = self.xsystem(["gpg", "--decrypt", self.password_dir + "/.passcode.gpg"])
         ret: dict[str, str] = {}
         for line in (out or "").split("\n"):
             if not line:
@@ -72,7 +66,7 @@ class PassCode:
         files: dict[str, int] = {}
         for name in self.get_files():
             if name.startswith(path):
-                tmp = name[len(path):].lstrip("/")
+                tmp = name[len(path) :].lstrip("/")
                 if "/" in tmp:
                     tmp = tmp.split("/", 1)[0]
                 elif sopts.get("dir_only"):
@@ -85,7 +79,16 @@ class PassCodeFile:
     """A single password entry in the store."""
 
     def __init__(self, **kwargs: Any) -> None:
-        for key in ("filepath", "password", "changed", "username", "url", "comment", "extra", "dir"):
+        for key in (
+            "filepath",
+            "password",
+            "changed",
+            "username",
+            "url",
+            "comment",
+            "extra",
+            "dir",
+        ):
             setattr(self, key, kwargs.get(key))
 
     @classmethod
@@ -105,7 +108,10 @@ class PassCodeFile:
             env["PASSWORD_STORE_DIR"] = args["dir"]
         proc = subprocess.run(
             ["pass", "code", "show", filepath],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
         )
         stdout = proc.stdout
         if "is not in the password store." in (proc.stderr or ""):
@@ -125,7 +131,9 @@ class PassCodeFile:
             else:
                 value = line
             if key == "comment":
-                hash_["comment"] = (hash_.get("comment") + "\n" if hash_.get("comment") else "") + value
+                hash_["comment"] = (
+                    hash_.get("comment") + "\n" if hash_.get("comment") else ""
+                ) + value
             elif key in ("filepath", "username", "url", "changed"):
                 hash_[key] = value.rstrip()
             else:
@@ -154,7 +162,11 @@ class PassCodeFile:
             env["PASSWORD_STORE_DIR"] = dir_
         subprocess.run(
             ["pass", "code", "insert", "-m", "-f", self.filepath],
-            input=cont, capture_output=True, text=True, env=env,
+            input=cont,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
         )
         return self
 
@@ -167,6 +179,9 @@ class PassCodeFile:
             env["PASSWORD_STORE_DIR"] = self.dir
         subprocess.run(
             ["pass", "code", "rm", "-f", self.filepath],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
         )
         return PassCodeFile()

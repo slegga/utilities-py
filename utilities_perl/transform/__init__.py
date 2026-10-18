@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .importers import CSVLastPassImporter, JSONImporter, SQLiteTableImporter
 from .exporters import PassCodeExporter, YAMLExporter
+from .importers import CSVLastPassImporter, JSONImporter, SQLiteTableImporter
 
 IMPORTERS = [CSVLastPassImporter, JSONImporter, SQLiteTableImporter]
 EXPORTERS = [YAMLExporter, PassCodeExporter]
@@ -21,7 +21,9 @@ EXPORTERS = [YAMLExporter, PassCodeExporter]
 class Transform:
     """Pick an importer and exporter and move data between them."""
 
-    def __init__(self, importer_args: dict | None = None, exporter_args: dict | None = None) -> None:
+    def __init__(
+        self, importer_args: dict | None = None, exporter_args: dict | None = None
+    ) -> None:
         self.importer_args = importer_args
         self.exporter_args = exporter_args
 
@@ -31,14 +33,10 @@ class Transform:
             plugin = cls()
             if plugin.is_accepted(args):
                 if chosen is not None:
-                    raise RuntimeError(
-                        f"More than one {kind} for {json.dumps(args, default=str)}"
-                    )
+                    raise RuntimeError(f"More than one {kind} for {json.dumps(args, default=str)}")
                 chosen = plugin
         if chosen is None:
-            raise RuntimeError(
-                f"No {kind}s can handle args: {json.dumps(args, default=str)}"
-            )
+            raise RuntimeError(f"No {kind}s can handle args: {json.dumps(args, default=str)}")
         return chosen
 
     @property
@@ -49,7 +47,9 @@ class Transform:
     def exporter(self):
         return self._pick(EXPORTERS, self.exporter_args, "exporter")
 
-    def transform(self, importer_args: dict | None = None, exporter_args: dict | None = None) -> Any:
+    def transform(
+        self, importer_args: dict | None = None, exporter_args: dict | None = None
+    ) -> Any:
         """Import from ``importer_args`` then export to ``exporter_args``."""
         if not isinstance(importer_args, dict):
             if not self.importer_args:

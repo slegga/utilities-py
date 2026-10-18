@@ -89,8 +89,7 @@ class EmailToHash:
                     multiline = True
 
         ret = self.hash_traverse(ret, self._split_semicolon)
-        ret = self.hash_traverse(ret, self._extract_params)
-        return ret
+        return self.hash_traverse(ret, self._extract_params)
 
     @staticmethod
     def _split_semicolon(value: Any, key: str | None) -> tuple[Any, str]:
@@ -101,7 +100,7 @@ class EmailToHash:
             and not isinstance(value, (dict, list))
             and key != "content"
             and ";" in value
-            and not re.search(r'^[^"]*"[^"]*;.*"', value, re.S)
+            and not re.search(r'^[^"]*"[^"]*;.*"', value, re.DOTALL)
         ):
             return {"a": value.split(";")}, "next"
         return value, "continue"
@@ -111,7 +110,7 @@ class EmailToHash:
         if isinstance(v, dict) and isinstance(v.get("a"), list):
             keep = []
             for item in v["a"]:
-                m = re.match(r"^\s*([\w\-\_\s\(\)]+)\=(.*)\s*", item, re.S)
+                m = re.match(r"^\s*([\w\-\_\s\(\)]+)\=(.*)\s*", item, re.DOTALL)
                 if m:
                     v.setdefault("h", {})[m.group(1)] = m.group(2)
                 else:
@@ -142,19 +141,12 @@ class EmailToHash:
             ctv = header_d["Content-Type"]
             if not isinstance(ctv, (dict, list)):
                 body = {"content": body, "Content-Type": ctv}
-            elif (
-                isinstance(ctv, dict)
-                and "a" in ctv
-                and re.match(r"^multipart", ctv["a"][0])
-            ):
+            elif isinstance(ctv, dict) and "a" in ctv and re.match(r"^multipart", ctv["a"][0]):
                 body = self.multipart(ctv, body)
             elif (
                 isinstance(ctv, dict)
                 and ctv.get("a", [None])[0]
-                and (
-                    not isinstance(body, dict)
-                    or not body.get("Content-Type")
-                )
+                and (not isinstance(body, dict) or not body.get("Content-Type"))
             ):
                 body = {"content": body, "Content-Type": ctv}
 
@@ -178,31 +170,33 @@ class EmailToHash:
                     r"\=\?iso\-8859\-1\?Q\?(.+?)\?\=",
                     lambda m: _decode_qp(m.group(1)),
                     v,
-                    flags=re.I,
+                    flags=re.IGNORECASE,
                 )
                 v = re.sub(
                     r"\=\?iso\-8859\-1\?B\?(.+?)\?\=",
                     lambda m: _decode_b64(m.group(1)),
                     v,
-                    flags=re.I,
+                    flags=re.IGNORECASE,
                 )
                 v = re.sub(
                     r"\=\?UTF-8\?B\?(.+?)\?\=",
                     lambda m: _decode_b64(m.group(1), "UTF-8"),
                     v,
-                    flags=re.I,
+                    flags=re.IGNORECASE,
                 )
                 v = re.sub(
                     r"\=\?UTF-8\?Q\?(.+?)\?\=",
                     lambda m: _decode_qp(m.group(1), "UTF-8"),
                     v,
-                    flags=re.I,
+                    flags=re.IGNORECASE,
                 )
             return v, "next"
 
         if key == "body" and isinstance(v, dict) and v.get("Content-Type"):
             ct = v["Content-Type"]
-            if isinstance(ct, dict) and re.match(r"^multipart", ct.get("a", [""])[0], re.I):
+            if isinstance(ct, dict) and re.match(
+                r"^multipart", ct.get("a", [""])[0], re.IGNORECASE
+            ):
                 v["content"] = self.multipart(ct, v.get("body"))
             else:
                 charset = ""
@@ -216,11 +210,10 @@ class EmailToHash:
                         v["content"] = _decode_qp(v.get("content", ""), charset or None)
                     elif cte == "base64":
                         v["content"] = _decode_b64(v.get("content", ""), charset or None)
-                    elif cte in ("7bit",):
+                    elif cte == "7bit":
                         pass
-                    elif cte in ("8bit", "binary"):
-                        if charset.upper() == "UTF-8":
-                            v["content"] = v.get("content", "")
+                    elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
+                        v["content"] = v.get("content", "")
                 elif (
                     isinstance(ct, dict)
                     and ct.get("h", {}).get("charset")
@@ -265,7 +258,7 @@ class EmailToHash:
     def multipart(self, type_: Any, body: str | None) -> str | None:
         if not isinstance(type_, dict):
             raise ValueError("Content-Type is not a reference")
-        if not re.match(r"^multipart", type_["a"][0], re.I):
+        if not re.match(r"^multipart", type_["a"][0], re.IGNORECASE):
             raise ValueError("Content-Type not like multipart")
         if "boundary" not in type_.get("h", {}):
             raise ValueError("Missing boundary in Content-Type")
