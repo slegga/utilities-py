@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import json
-import re
 import sqlite3
 from pathlib import Path
 from typing import Any
 
 from ..csv_lastpass import CSVLastPass
 
-_TABLE_IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-
 
 def _extname(path: Any) -> str:
     return Path(str(path)).suffix.lstrip(".")
+
+
+def _quote_ident(name: str) -> str:
+    return ".".join('"' + part.strip().replace('"', '""') + '"' for part in name.split("."))
 
 
 class Importer:
@@ -57,13 +58,10 @@ class SQLiteTableImporter(Importer):
 
     def importx(self, args: dict) -> list[dict[str, Any]]:
         table = str(args["table"])
-        if not _TABLE_IDENT.fullmatch(table):
-            raise ValueError(f"Ugyldig tabellnavn: {table!r}")
         conn = sqlite3.connect(args["file"])
         try:
             conn.row_factory = sqlite3.Row
-            # Tabellnavnet er validert som ren SQL-identifikator over.
-            rows = conn.execute(f'select * from "{table}"').fetchall()  # noqa: S608
+            rows = conn.execute(f"select * from {_quote_ident(table)}").fetchall()  # noqa: S608
             return [dict(row) for row in rows]
         finally:
             conn.close()

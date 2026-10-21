@@ -25,16 +25,17 @@ som bør avklares med den som eier kravet, ikke avgjøres stille her.
 ## Røyktester
 
 Filen inneholder røyktester som verifiserer at lint-testen faktisk feiler på
-villette lint- og formatfeil med tydelig melding om hva som må fikses, og at
-den ellers går grønt. Røyktestene kopierer den leverte `ruff.toml` inn i det
-temporære prosjektet, slik at paret testfil + konfigurasjon testes slik det
-faktisk skal kopieres. Den prosjektvise `ruff.toml` isolerer samtidig
-røyktestene fra bruker- og systemkonfigurasjonen til ruff. Røyktestene hviler
-på to forutsetninger i den leverte konfigurasjonen: `ruff check` fanger ubrukte
-importer (F401), og `ruff format` krever doble sitater. Endres `select` eller
-`quote-style` i `ruff.toml`, må forutsetningene i røyktestene følge med.
-Leveres ingen `ruff.toml`, brukes en fast, kjent minimal konfigurasjon med de
-samme forutsetningene.
+villette lint- og formatfeil med tydelig melding om hva som må fikses, og at den
+ellers går grønt. Røyktestene skriver alltid en fast, kjent minimal
+ruff-konfigurasjon til det temporære prosjektet. Det gjør dem uavhengige av
+hvilken ruff-konfigurasjon målrepoet ellers har, og isolerer dem samtidig fra
+bruker- og systemkonfigurasjonen til ruff. Forutsetningene røyktestene hviler
+på er satt eksplisitt i den faste konfigurasjonen: `ruff check` fanger ubrukte
+importer (F401), og `ruff format` krever doble sitater.
+
+## Vedlikehold
+
+Vedlikeholdet av denne filen deles av agent og menneske.
 """
 
 from __future__ import annotations
@@ -46,7 +47,10 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
-INSTALL_RUFF = "Legg ruff til som dev-avhengighet, for eksempel `uv add --dev ruff`."
+INSTALL_RUFF = (
+    "Legg ruff til som dev-avhengighet, for eksempel `uv add --dev ruff` "
+    "eller `uv add --optional dev ruff`."
+)
 
 UV_FEILMELDINGER = (
     "no solution found when resolving tool dependencies",
@@ -206,10 +210,9 @@ def test_ruff_format() -> None:
 # --- Røyktester: lint-testen skal fange villete lint- og formatfeil ---
 
 
-# Fast, kjent minimal ruff-konfigurasjon som brukes bare når prosjektet ikke
-# har noen leverte `ruff.toml` å kopiere. Premissene røyktestene hviler på er
-# satt eksplisitt her: `ruff check` fanger ubrukte importer (F401), og
-# `ruff format` krever doble sitater.
+# Fast, kjent minimal ruff-konfigurasjon som alltid brukes i røyktestene.
+# Premissene røyktestene hviler på er satt eksplisitt her: `ruff check`
+# fanger ubrukte importer (F401), og `ruff format` krever doble sitater.
 ROYKTEST_RUFF_TOML = """\
 [lint]
 select = ["F"]
@@ -222,17 +225,12 @@ quote-style = "double"
 def make_project(root: Path, source: str) -> None:
     """Opprett et lite prosjekt i root med én modul med gitt kildekode.
 
-    Den leverte `ruff.toml` kopieres inn i det temporære prosjektet, slik at
-    røyktestene tester paret testfil + konfigurasjon slik det faktisk skal
-    kopieres. Finnes ingen `ruff.toml` i prosjektroten, brukes den faste,
-    kjente konfigurasjonen i stedet.
+    Den faste, kjente konfigurasjonen skrives alltid til det temporære
+    prosjektet, slik at røyktestene er uavhengige av hvilken
+    ruff-konfigurasjon målrepoet ellers har.
     """
     (root / "modul.py").write_text(source, encoding="utf-8")
-    levert = project_root() / "ruff.toml"
-    if levert.is_file():
-        shutil.copyfile(levert, root / "ruff.toml")
-    else:
-        (root / "ruff.toml").write_text(ROYKTEST_RUFF_TOML, encoding="utf-8")
+    (root / "ruff.toml").write_text(ROYKTEST_RUFF_TOML, encoding="utf-8")
 
 
 def failed_check(action: Callable[[], None], context: str) -> str:

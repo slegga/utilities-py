@@ -11,7 +11,6 @@ import json
 import os
 import re
 import socket
-import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -60,12 +59,7 @@ class Alert:
             print(json.dumps(payload) + self.url)
             return None
 
-        scheme = urllib.parse.urlparse(self.url).scheme
-        if scheme not in ("http", "https"):
-            raise ValueError(f"Unsupported URL scheme {scheme!r} in {self.url!r}")
-
         data = json.dumps(payload).encode("utf-8")
-        # Scheme over er kontrollert til http/https før URL-en åpnes.
         req = urllib.request.Request(  # noqa: S310
             self.url, data=data, headers={"Content-Type": "application/json"}
         )

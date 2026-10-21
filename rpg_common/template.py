@@ -122,7 +122,7 @@ def myrowsort(
     return mytextsort(list(data.keys()), rekkefoelge)
 
 
-def ctable(  # noqa: C901
+def ctable(
     data: Sequence[dict[str, Any]],
     category: str,
     columns: list[str] | None = None,
@@ -154,19 +154,10 @@ def ctable(  # noqa: C901
         return ""
 
     if columns is None:
-        first_row = data[0]
-        if not isinstance(first_row, dict):
-            raise TypeError(f"{category} is missing keys")
-        if rekkefoelge is not None:
-            columns = mytextsort(list(first_row.keys()), rekkefoelge)
-        else:
-            columns = sorted(first_row.keys())
+        columns = _resolve_columns(data, category, rekkefoelge)
 
     if calculated:
-        data = [dict(row) for row in data]
-        for row in data:
-            for key, func in calculated.items():
-                row[key] = func(category, row)
+        data = _apply_calculated(data, category, calculated)
 
     lines: list[str] = []
     header = "|".join([""] + [category if c == "navn" else c for c in columns] + [""])
@@ -174,17 +165,44 @@ def ctable(  # noqa: C901
     lines.append(header)
     lines.append(sep)
 
-    for row in data:
-        values: list[str] = []
-        for c in columns:
-            data_key = "navn" if c == category else c
-            val = row.get(data_key, "")
-            if callable(val):
-                val = val(category, row)
-            values.append(str(val) if val is not None else " ")
-        lines.append("|".join(["", *values, ""]))
+    lines.extend(_table_row(row, columns, category) for row in data)
 
     return "\n".join(lines)
+
+
+def _resolve_columns(
+    data: Sequence[dict[str, Any]], category: str, rekkefoelge: Sequence[str] | None
+) -> list[str]:
+    """Finn kolonner fra første rad når kolonner ikke er oppgitt."""
+    first_row = data[0]
+    if not isinstance(first_row, dict):
+        raise TypeError(f"{category} is missing keys")
+    if rekkefoelge is not None:
+        return mytextsort(list(first_row.keys()), rekkefoelge)
+    return sorted(first_row.keys())
+
+
+def _apply_calculated(
+    data: Sequence[dict[str, Any]], category: str, calculated: dict[str, Callable]
+) -> list[dict[str, Any]]:
+    """Kopier radene og legg til beregnede kolonner."""
+    rows = [dict(row) for row in data]
+    for row in rows:
+        for key, func in calculated.items():
+            row[key] = func(category, row)
+    return rows
+
+
+def _table_row(row: dict[str, Any], columns: list[str], category: str) -> str:
+    """Bygg én tabellrad med rør som skilletegn."""
+    values: list[str] = []
+    for c in columns:
+        data_key = "navn" if c == category else c
+        val = row.get(data_key, "")
+        if callable(val):
+            val = val(category, row)
+        values.append(str(val) if val is not None else " ")
+    return "|".join(["", *values, ""])
 
 
 def clist(
@@ -200,7 +218,7 @@ def clist(
     data:
         Liste med dicts, der hver dict har et ``navn``-felt.
     category:
-        Kategorinavn (for feilmeldinger).
+        Kategorinavn (brukes ikke direkte, men beholdt for API-kompatibilitet).
     bindword:
         Bindord som skiller siste element (standard: ``og``).
     rekkefoelge:

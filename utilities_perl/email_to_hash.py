@@ -11,7 +11,6 @@ import base64
 import copy
 import quopri
 import re
-import tempfile
 from typing import Any
 
 
@@ -22,6 +21,16 @@ def _add(d: dict, key: str, value: Any) -> None:
         d[key].append(value)
     else:
         d[key] = [d[key], value]
+
+
+def _fold_value(ret: dict[str, Any], k: str | None, line: str) -> None:
+    """Fold en innrykket fortsettelseslinje inn i verdien til ``k``."""
+    if k is None:
+        raise ValueError(f"ERROR LINE: '{line}'")
+    if isinstance(ret[k], list):
+        ret[k][-1] = (ret[k][-1] or "") + "\n" + line
+    else:
+        ret[k] = (ret[k] or "") + "\n" + line
 
 
 def _decode_qp(text: str, charset: str | None = None) -> str:
@@ -38,10 +47,62 @@ def _decode_b64(text: str, charset: str | None = None) -> str:
     return raw.decode("latin-1", "replace")
 
 
+def _decode_mime_words(text: str) -> str:
+    text = re.sub(
+        r"\=\?iso\-8859\-1\?Q\?(.+?)\?\=",
+        lambda m: _decode_qp(m.group(1)),
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\=\?iso\-8859\-1\?B\?(.+?)\?\=",
+        lambda m: _decode_b64(m.group(1)),
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\=\?UTF\-8\?B\?(.+?)\?\=",
+        lambda m: _decode_b64(m.group(1), "UTF-8"),
+        text,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(
+        r"\=\?UTF\-8\?Q\?(.+?)\?\=",
+        lambda m: _decode_qp(m.group(1), "UTF-8"),
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def _decode_single_part(v: dict, ct: Any) -> None:
+    """Dekod content/charset/CTE for en enkelt del i ``v`` (plass, på stedet)."""
+    charset = ""
+    if isinstance(ct, dict) and ct.get("h", {}).get("charset"):
+        charset = ct["h"]["charset"]
+    charset = re.sub(r'^["\']|["\']$', "", charset)
+    if v.get("Content-Transfer-Encoding"):
+        cte = v["Content-Transfer-Encoding"].lower().strip()
+        cte = re.sub(r"[.;,]+$", "", cte)
+        if cte == "quoted-printable":
+            v["content"] = _decode_qp(v.get("content", ""), charset or None)
+        elif cte == "base64":
+            v["content"] = _decode_b64(v.get("content", ""), charset or None)
+        elif cte == "7bit":
+            pass
+        elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
+            v["content"] = v.get("content", "")
+    elif (
+        isinstance(ct, dict)
+        and ct.get("h", {}).get("charset")
+        and ct["h"]["charset"].upper() == "UTF-8"
+    ):
+        pass
+
+
 class EmailToHash:
     """Parse raw email MIME text into nested dicts."""
 
-    def __init__(self, tmpdir: str = tempfile.gettempdir()) -> None:
+    def __init__(self, tmpdir: str = "/tmp") -> None:  # noqa: S108
         self.tmpdir = tmpdir
 
     # -- header / parameter block parsing -------------------------------------
@@ -57,39 +118,44 @@ class EmailToHash:
         for line in string.split("\n"):
             if multiline:
                 ret["content"] = ret.get("content", "") + line + "\n"
-            elif re.match(r"^([\w\-]+):\s(.*)$", line):
-                m = re.match(r"^([\w\-]+):\s(.*)$", line)
-                k = m.group(1)
-                _add(ret, k, m.group(2))
             elif re.match(r"^\s+", line):
                 if re.match(r"^\s+$", line) and not multiline:
                     multiline = True
                     continue
-                if k is None:
-                    raise ValueError(f"ERROR LINE: '{line}'")
-                if isinstance(ret[k], list):
-                    ret[k][-1] = (ret[k][-1] or "") + "\n" + line
-                else:
-                    ret[k] = (ret[k] or "") + "\n" + line
-            elif re.match(r"^([\w\-]+):$", line):
-                k = re.match(r"^([\w\-]+):$", line).group(1)
-                ret[k] = None
-            elif not line:
-                k = None
-                multiline = True
-            elif re.match(r"^\-\-\_.+\_$", line):
-                k = None
-            elif line.startswith("From ") and len(ret) == 0:
-                ret["heading"] = ret.get("heading", "") + line
-            elif re.match(r"^([\w\-]+):(\S.*)$", line):
-                m = re.match(r"^([\w\-]+):(\S.*)$", line)
-                k = m.group(1)
-                _add(ret, k, m.group(2))
+                _fold_value(ret, k, line)
             else:
-                multiline = True
+                k, multiline = self._parameterify_line(ret, line, k)
 
         ret = self.hash_traverse(ret, self._split_semicolon)
         return self.hash_traverse(ret, self._extract_params)
+
+    def _parameterify_line(
+        self, ret: dict[str, Any], line: str, k: str | None
+    ) -> tuple[str | None, bool]:
+        """Håndter én ikke-fortsettelseslinje. Returnerer (ny k, ny multiline)."""
+        ny_k = k
+        multiline = False
+        m = re.match(r"^([\w\-]+):\s(.*)$", line)
+        if m:
+            _add(ret, m.group(1), m.group(2))
+            ny_k = m.group(1)
+        elif re.match(r"^([\w\-]+):$", line):
+            ny_k = re.match(r"^([\w\-]+):$", line).group(1)
+            ret[ny_k] = None
+        elif not line:
+            ny_k, multiline = None, True
+        elif re.match(r"^\-\-\_.+\_$", line):
+            ny_k = None
+        elif line.startswith("From ") and len(ret) == 0:
+            ret["heading"] = ret.get("heading", "") + line
+        else:
+            m = re.match(r"^([\w\-]+):(\S.*)$", line)
+            if m:
+                _add(ret, m.group(1), m.group(2))
+                ny_k = m.group(1)
+            else:
+                multiline = True
+        return ny_k, multiline
 
     @staticmethod
     def _split_semicolon(value: Any, key: str | None) -> tuple[Any, str]:
@@ -166,30 +232,7 @@ class EmailToHash:
     def _decode_content(self, v: Any, key: str | None) -> tuple[Any, str]:
         if v and not isinstance(v, (dict, list)):
             if re.search(r"^\=.*\?\=", v) or key == "content":
-                v = re.sub(
-                    r"\=\?iso\-8859\-1\?Q\?(.+?)\?\=",
-                    lambda m: _decode_qp(m.group(1)),
-                    v,
-                    flags=re.IGNORECASE,
-                )
-                v = re.sub(
-                    r"\=\?iso\-8859\-1\?B\?(.+?)\?\=",
-                    lambda m: _decode_b64(m.group(1)),
-                    v,
-                    flags=re.IGNORECASE,
-                )
-                v = re.sub(
-                    r"\=\?UTF-8\?B\?(.+?)\?\=",
-                    lambda m: _decode_b64(m.group(1), "UTF-8"),
-                    v,
-                    flags=re.IGNORECASE,
-                )
-                v = re.sub(
-                    r"\=\?UTF-8\?Q\?(.+?)\?\=",
-                    lambda m: _decode_qp(m.group(1), "UTF-8"),
-                    v,
-                    flags=re.IGNORECASE,
-                )
+                v = _decode_mime_words(v)
             return v, "next"
 
         if key == "body" and isinstance(v, dict) and v.get("Content-Type"):
@@ -199,27 +242,7 @@ class EmailToHash:
             ):
                 v["content"] = self.multipart(ct, v.get("body"))
             else:
-                charset = ""
-                if isinstance(ct, dict) and ct.get("h", {}).get("charset"):
-                    charset = ct["h"]["charset"]
-                charset = re.sub(r'^["\']|["\']$', "", charset)
-                if v.get("Content-Transfer-Encoding"):
-                    cte = v["Content-Transfer-Encoding"].lower().strip()
-                    cte = re.sub(r"[.;,]+$", "", cte)
-                    if cte == "quoted-printable":
-                        v["content"] = _decode_qp(v.get("content", ""), charset or None)
-                    elif cte == "base64":
-                        v["content"] = _decode_b64(v.get("content", ""), charset or None)
-                    elif cte == "7bit":
-                        pass
-                    elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
-                        v["content"] = v.get("content", "")
-                elif (
-                    isinstance(ct, dict)
-                    and ct.get("h", {}).get("charset")
-                    and ct["h"]["charset"].upper() == "UTF-8"
-                ):
-                    pass
+                _decode_single_part(v, ct)
                 return v, "next"
         return v, "continue"
 

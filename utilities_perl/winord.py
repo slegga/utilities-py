@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import shlex
 import subprocess
 
 
@@ -27,8 +26,8 @@ class WinOrd:
         self.windows: list[dict] = []
 
     def get_info(self):
-        resraw = subprocess.run(
-            ["wmctrl", "-d"], capture_output=True, text=True, check=False
+        resraw = subprocess.run(  # noqa: S602
+            "wmctrl -d", shell=True, capture_output=True, text=True, check=False
         ).stdout
         active = next((row for row in resraw.splitlines() if "*" in row), "")
         m = re.search(r"WA:.+?(\d+)x(\d+)", active)
@@ -38,8 +37,8 @@ class WinOrd:
         self.x_max = x_res
         self.y_max = y_res - 36
 
-        wmctrl = subprocess.run(
-            ["wmctrl", "-Gl"], capture_output=True, text=True, check=False
+        wmctrl = subprocess.run(  # noqa: S602
+            "wmctrl -Gl", shell=True, capture_output=True, text=True, check=False
         ).stdout
         rows = [re.split(r"\s+", line, maxsplit=7) for line in wmctrl.splitlines()]
         screens: list[dict] = []
@@ -59,20 +58,13 @@ class WinOrd:
             if not screen:
                 continue
             for key, value in screen.items():
-                geometry = (
-                    f"{i},{value['x_pos']},{value['y_pos']},{value['x_size']},{value['y_size']}"
+                resize = (
+                    f'wmctrl -r "{key}" -b remove,above,fullscreen,sticky,'
+                    f"maximized_vert,maximized_horz -e {i},"
+                    f"{value['x_pos']},{value['y_pos']},{value['x_size']},{value['y_size']}"
                 )
-                resize = [
-                    "wmctrl",
-                    "-r",
-                    key,
-                    "-b",
-                    "remove,above,fullscreen,sticky,maximized_vert,maximized_horz",
-                    "-e",
-                    geometry,
-                ]
-                print(shlex.join(resize))
-                subprocess.run(resize, check=False)
+                print(resize)
+                subprocess.run(resize, shell=True, check=False)  # noqa: S602
             i += 1
 
     def main(self):

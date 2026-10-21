@@ -124,38 +124,50 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
         if not Path(source_dir).is_dir():
             raise SystemExit(f"Source directory: {source_dir} does not exists")
         for destination, dest_cfg in (destinations or {}).items():
-            if not Path(destination).is_dir():
-                if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
-                    raise SystemExit(f"Destination: {destination} is not a directory.")
-                subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
-                if not Path(destination).is_dir():
-                    raise SystemExit(
-                        f"Destination {destination} is not a directory or did not mount."
-                    )
+            _ensure_destination(destination, dest_cfg)
             all_files = [str(p)[len(source_dir) :] for p in Path(source_dir).rglob("*")]
             done_files = dict.fromkeys(done.get(source_dir) or [], 1)
             candidates = [f for f in all_files if done_files.get(f) != 1]
             for cpfile in candidates:
-                src = source_dir + cpfile
-                dst = destination + cpfile
-                if Path(src).is_dir():
-                    if not Path(dst).is_dir():
-                        Path(dst).mkdir()
-                elif (
-                    Path(dst).exists()
-                    and not os.access(dst, os.W_OK)
-                    and Path(src).stat().st_size == Path(dst).stat().st_size
-                ):
-                    print(f"{dst} exists. Do notthing")
-                else:
-                    print(f"copy({src}, {dst})")
-                    shutil.copy(src, dst)
-                    print(f"{cpfile} has been copied")
+                _forward_file(source_dir + cpfile, destination + cpfile, cpfile)
                 done.setdefault(source_dir, []).append(cpfile)
                 with done_file.open("w", encoding="utf-8") as fh:
                     yaml.safe_dump(done, fh, allow_unicode=True)
     print("Finished!")
     return 0
+
+
+def _ensure_destination(destination: str, dest_cfg: object) -> None:
+    """Mount destination if needed, or exit if it cannot be used as a directory."""
+    if Path(destination).is_dir():
+        return
+    if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
+        raise SystemExit(f"Destination: {destination} is not a directory.")
+    subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
+    if not Path(destination).is_dir():
+        raise SystemExit(f"Destination {destination} is not a directory or did not mount.")
+
+
+def _forward_file(src: str, dst: str, cpfile: str) -> None:
+    """Copy one source entry to the destination unless it is already there."""
+    if Path(src).is_dir():
+        if not Path(dst).is_dir():
+            Path(dst).mkdir()
+    elif (
+        Path(dst).exists()
+        and not os.access(dst, os.W_OK)
+        and Path(src).stat().st_size == Path(dst).stat().st_size
+    ):
+        print(f"{dst} exists. Do notthing")
+    else:
+        print(f"copy({src}, {dst})")
+        shutil.copy(src, dst)
+        print(f"{cpfile} has been copied")
+
+
+def _should_follow_link(link: str, tf: str, first: bool) -> bool:
+    """Vil symlink-målet bli fulgt? Tomt mål ignoreres; også målet "." følges."""
+    return link != "" and not first and link != tf
 
 
 def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
@@ -188,9 +200,10 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
                 group_rwx = (mode & stat.S_IRWXG) >> 3
                 other_rwx = mode & stat.S_IRWXO
                 if tf.is_symlink():
-                    link = tf.readlink()
-                    if link != Path() and not first and link != tf:
-                        links.append(link)
+                    # Rå målstreng: Path.readlink skiller ikke tomt mål fra ".".
+                    link = os.readlink(tf)  # noqa: PTH115
+                    if _should_follow_link(link, str(tf), first):
+                        links.append(Path(link))
                         break
             first = False
             result.append(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from pathlib import Path
@@ -15,6 +16,12 @@ from ..passcode import PassCodeFile
 
 def _extname(path: Any) -> str:
     return Path(str(path)).suffix.lstrip(".")
+
+
+def _check_keys(row: dict[str, Any], accepted: set[str], label: str) -> None:
+    for key in row:
+        if key not in accepted:
+            raise ValueError(f"Unknown key: {key} in {label}")
 
 
 class Exporter:
@@ -52,72 +59,86 @@ class PassCodeExporter(Exporter):
     def export(self, args: dict, data: Any) -> None:
         formatted: list[dict[str, Any]] = []
         if data and data[0].get("name"):
-            accepted = {"grouping", "name", "password", "username", "url", "totp", "fav", "extra"}
-            for row in data:
-                for key in row:
-                    if key not in accepted:
-                        raise ValueError(f"Unknown key: {key} in Last Pass format")
-                nr: dict[str, Any] = {}
-                nr["filepath"] = (
-                    f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
-                )
-                for key in ("password", "username", "url"):
-                    nr[key] = row.get(key)
-                nr["changed"] = time.strftime("%Y-%m-%d")
-                nr["comment"] = row.get("extra")
-                if row.get("totp"):
-                    nr["comment"] = (nr["comment"] or "") + ",totp:" + row["totp"]
-                if row.get("fav"):
-                    nr["comment"] = (nr["comment"] or "") + ",fav:" + str(row["fav"])
-                if args.get("dir"):
-                    nr["dir"] = args["dir"]
-                if not nr.get("filepath"):
-                    if sum(1 for v in nr.values() if v is not None) == 2:
-                        continue
-                    raise ValueError("Missing file path")
-                if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
-                    nr["filepath"] = "jobb/" + Path(nr["filepath"]).name
-                formatted.append(nr)
+            formatted = self._format_lastpass_rows(data, args)
         elif data and "SYSTEM" in data[0]:
-            accepted = {
-                "id",
-                "DOMENE",
-                "GRUPPERING",
-                "SYSTEM",
-                "URL",
-                "BRUKER",
-                "PASSORD",
-                "BESKRIVELSE",
-                "BYTTE",
-            }
-            for row in data:
-                for key in row:
-                    if key not in accepted:
-                        raise ValueError(f"Unknown key: {key} in passordfil format")
-                filename = row.get("SYSTEM") or row.get("url")
-                if filename is None:
-                    raise ValueError("missing filename source")
-                filename = re.sub(r"\s", "_", filename)
-                filename = re.sub(r"^https?+://", "", filename)
-                filename = re.sub(r"[/:].*", "", filename)
-                if not filename:
-                    if not row.get("password"):
-                        continue
-                    raise ValueError("No filename")
-                nr = {
-                    "filepath": (row.get("GRUPPERING") or row.get("DOMENE")) + "/" + filename,
-                    "password": row.get("PASSORD"),
-                    "username": row.get("BRUKER"),
-                    "url": row.get("URL"),
-                    "changed": row.get("BYTTE"),
-                    "comment": row.get("BESKRIVELSE"),
-                }
-                if args.get("dir"):
-                    nr["dir"] = args["dir"]
-                formatted.append(nr)
+            formatted = self._format_passordfil_rows(data, args)
 
         for entry in formatted:
             self._check_duplicate_and_store_file(entry, args)
+
+    def _format_lastpass_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
+        accepted = {"grouping", "name", "password", "username", "url", "totp", "fav", "extra"}
+        formatted: list[dict[str, Any]] = []
+        for row in data:
+            _check_keys(row, accepted, "Last Pass format")
+            entry = self._lastpass_entry(row, args)
+            if entry is not None:
+                formatted.append(entry)
+        return formatted
+
+    def _lastpass_entry(self, row: dict[str, Any], args: dict) -> dict[str, Any] | None:
+        nr: dict[str, Any] = {}
+        nr["filepath"] = f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
+        for key in ("password", "username", "url"):
+            nr[key] = row.get(key)
+        nr["changed"] = time.strftime("%Y-%m-%d")
+        nr["comment"] = row.get("extra")
+        if row.get("totp"):
+            nr["comment"] = (nr["comment"] or "") + ",totp:" + row["totp"]
+        if row.get("fav"):
+            nr["comment"] = (nr["comment"] or "") + ",fav:" + str(row["fav"])
+        if args.get("dir"):
+            nr["dir"] = args["dir"]
+        if not nr.get("filepath"):
+            if sum(1 for v in nr.values() if v is not None) == 2:
+                return None
+            raise ValueError("Missing file path")
+        if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
+            nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])  # noqa: PTH119
+        return nr
+
+    def _format_passordfil_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
+        accepted = {
+            "id",
+            "DOMENE",
+            "GRUPPERING",
+            "SYSTEM",
+            "URL",
+            "BRUKER",
+            "PASSORD",
+            "BESKRIVELSE",
+            "BYTTE",
+        }
+        formatted: list[dict[str, Any]] = []
+        for row in data:
+            _check_keys(row, accepted, "passordfil format")
+            entry = self._passordfil_entry(row, args)
+            if entry is not None:
+                formatted.append(entry)
+        return formatted
+
+    def _passordfil_entry(self, row: dict[str, Any], args: dict) -> dict[str, Any] | None:
+        filename = row.get("SYSTEM") or row.get("url")
+        if filename is None:
+            raise ValueError("missing filename source")
+        filename = re.sub(r"\s", "_", filename)
+        filename = re.sub(r"^https?+://", "", filename)
+        filename = re.sub(r"[/:].*", "", filename)
+        if not filename:
+            if not row.get("password"):
+                return None
+            raise ValueError("No filename")
+        nr = {
+            "filepath": (row.get("GRUPPERING") or row.get("DOMENE")) + "/" + filename,
+            "password": row.get("PASSORD"),
+            "username": row.get("BRUKER"),
+            "url": row.get("URL"),
+            "changed": row.get("BYTTE"),
+            "comment": row.get("BESKRIVELSE"),
+        }
+        if args.get("dir"):
+            nr["dir"] = args["dir"]
+        return nr
 
     def _check_duplicate_and_store_file(self, f: dict[str, Any], args: dict) -> None:
         if not f.get("filepath"):
@@ -146,10 +167,10 @@ class PassCodeExporter(Exporter):
         if keep == "b":
             f["filepath"] += "-" + (f.get("username") or "")
         elif keep == "e":
-            path = Path(f["filepath"])
-            old = path.name
+            old = os.path.basename(f["filepath"])  # noqa: PTH119
+            dir_ = os.path.dirname(f["filepath"])  # noqa: PTH120
             new = ask(f"Enter new filename old is {old}: ", re.compile(r".*"))
-            f["filepath"] = str(path.parent / new)
+            f["filepath"] = (dir_ + "/" if dir_ else "") + new
 
         for k in PassCodeFile.okeys():
             if f.get(k):
