@@ -22,9 +22,36 @@ select = [
     "PT",
     "PERF",
     "FURB",
-    "PLW",
+    "PL",
     "RUF",
+    "S",
+    "ARG",
+    "C90",
+    "PTH",
+    "DTZ",
+    "ERA",
 ]
+
+# Regler som er utelatt fra det brede regelsettet:
+# - S603 og S607 er bandit-audit-regler som varsler på hvert eneste
+#   underprosesskall uavhengig av tillit, og gir mer støy enn nytte i
+#   CLI-verktøy som tilsiktet kjører eksterne kommandoer. Øvrige S-regler,
+#   inkludert S602 (shell=True) og S608 (SQL-bygging), beholdes.
+# - PLR2004 krever at tallverdier i sammenligninger navngis som konstanter.
+#   Det er et nivåvalg som bør avklares med den som eier kravet (se
+#   "## Ruff-nivå" i tests/test_lint.py) før det tas inn, ikke noe som bør
+#   avgjøres stille i denne leveransen.
+ignore = [
+    "PLR2004",
+    "S603",
+    "S607",
+]
+
+[lint.per-file-ignores]
+# `assert` er selve testmekanismen i pytest, og testdata inneholder bevisst
+# oppdiktede passord.
+"tests/**" = ["S101", "S105"]
+"test/**" = ["S101", "S105"]
 
 [format]
 quote-style = "double"

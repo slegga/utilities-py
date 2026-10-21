@@ -1,4 +1,3 @@
-import os
 import re
 
 from utilities_perl.email_to_hash import EmailToHash
@@ -27,7 +26,7 @@ def test_parameterify_content_type():
 
 
 def _txt_files(data_dir):
-    return [f for f in os.listdir(data_dir) if f.endswith(".txt")]
+    return [p.name for p in data_dir.iterdir() if p.name.endswith(".txt")]
 
 
 def test_msgtext2hash_all_data_files(data_dir):
@@ -35,8 +34,8 @@ def test_msgtext2hash_all_data_files(data_dir):
     files = _txt_files(data_dir)
     assert files, "expected sample email files"
     for fname in files:
-        path = os.path.join(data_dir, fname)
-        with open(path, encoding="utf-8", errors="replace") as fh:
+        path = data_dir / fname
+        with path.open(encoding="utf-8", errors="replace") as fh:
             content = fh.read()
         cont = parser.msgtext2hash(content)
         assert "Content-Type" in cont["header"], fname

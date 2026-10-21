@@ -7,7 +7,10 @@ på PATH som fallback.
 
 Ruff-konfigurasjonen (`ruff.toml`) kopieres sammen med denne filen og leses
 av ruff på standard vis. Denne filen er konfigurasjonsløs: den finner
-prosjektroten relativt til testfilen og kjører ruff derfra.
+prosjektroten relativt til testfilen og kjører ruff derfra. Filen er selv
+kompatibel med ruff standardkonfigurasjon (linjelengde 88, default select)
+og inneholder ikke tvetydige unicode-tegn, slik at den også passer inn i
+repoer med egen ruff-konfigurasjon.
 
 ## Ruff-nivå
 
@@ -23,18 +26,37 @@ som bør avklares med den som eier kravet, ikke avgjøres stille her.
 
 Filen inneholder røyktester som verifiserer at lint-testen faktisk feiler på
 villette lint- og formatfeil med tydelig melding om hva som må fikses, og at
-den ellers går grønt.
+den ellers går grønt. Røyktestene kopierer den leverte `ruff.toml` inn i det
+temporære prosjektet, slik at paret testfil + konfigurasjon testes slik det
+faktisk skal kopieres. Den prosjektvise `ruff.toml` isolerer samtidig
+røyktestene fra bruker- og systemkonfigurasjonen til ruff. Røyktestene hviler
+på to forutsetninger i den leverte konfigurasjonen: `ruff check` fanger ubrukte
+importer (F401), og `ruff format` krever doble sitater. Endres `select` eller
+`quote-style` i `ruff.toml`, må forutsetningene i røyktestene følge med.
+Leveres ingen `ruff.toml`, brukes en fast, kjent minimal konfigurasjon med de
+samme forutsetningene.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
-INSTALL_RUFF = "uv add --optional dev ruff"
+INSTALL_RUFF = "Legg ruff til som dev-avhengighet, for eksempel `uv add --dev ruff`."
+
+UV_FEILMELDINGER = (
+    "no solution found when resolving tool dependencies",
+    "was not found in the package registry",
+    "failed to fetch",
+    "failed to download",
+)
+OS_FEILMELDING = re.compile(
+    r"^(?:no such file or directory|command not found)(?: \(os error \d+\))?$",
+)
 
 
 def project_root() -> Path:
@@ -57,12 +79,17 @@ def run(cmd: list[str], root: Path) -> subprocess.CompletedProcess:
     """Kjør en kommando i prosjektroten og returner resultatet."""
     cmdline = " ".join(cmd)
     try:
-        return subprocess.run(cmd, cwd=root, capture_output=True, text=True, check=False)
+        return subprocess.run(
+            cmd,
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
     except FileNotFoundError as err:
-        raise AssertionError(
-            f"Klarte ikke å kjøre kommandoen {cmdline}.\n"
-            f"Sjekk at {cmd[0]} er installert og ligger på PATH.\nFeil: {err}"
-        ) from err
+        detaljer = f"Sjekk at {cmd[0]} er installert og ligger på PATH.\nFeil: {err}"
+        melding = f"Klarte ikke å kjøre kommandoen {cmdline}.\n{detaljer}"
+        raise AssertionError(melding) from err
 
 
 def output_text(output: subprocess.CompletedProcess) -> str:
@@ -71,62 +98,73 @@ def output_text(output: subprocess.CompletedProcess) -> str:
         status = f"avbrutt av signal {-output.returncode}"
     else:
         status = f"exit status: {output.returncode}"
-    return f"{status}\n\n--- stdout ---\n{output.stdout}\n--- stderr ---\n{output.stderr}"
+    stdout = output.stdout
+    stderr = output.stderr
+    return f"{status}\n\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}"
+
+
+def error_message(line: str) -> str | None:
+    """Meldingsdelen etter feil-markøren, eller None hvis linjen ikke er markert."""
+    if line.startswith("error: "):
+        return line.removeprefix("error: ").strip()
+    stripped = line.strip()
+    if stripped.startswith(("\u00d7", "\u2570")):
+        return stripped.lstrip("\u00d7\u2570\u2500\u25b6 ").strip()
+    return None
 
 
 def is_missing_tool_error(stderr: str) -> bool:
-    """Returnerer sann hvis stderr-en ser ut til å komme fra at selve verktøyet mangler.
+    """Sann hvis stderr-en ser ut til å bety at selve verktøyet mangler.
 
     Gjenkjenningen er begrenset til faktiske manglende-verktøy-meldinger, det
     vil si linjer som starter med `error: ` eller med en av uv/uvx sine egne
-    feil-markører, og som inneholder et kjent mønster fra uv/uvx (no solution
-    found when resolving tool dependencies, was not found in the package
-    registry, failed to fetch) eller operativsystemet (no such file or
-    directory, command not found).
+    feil-markører.
+
+    For uv/uvx-mønstrene (no solution found when resolving tool dependencies,
+    was not found in the package registry, failed to fetch, failed to download)
+    holder det at mønsteret nevnes et sted i meldingen.
+
+    For operativsystemmønstrene (no such file or directory, command not found)
+    må hele meldingen være nettopp OS-feilen, eventuelt med `(os error N)` til
+    slutt. Det skiller «ruff er ikke installert» fra ruff sine egne IO-feil,
+    for eksempel `error: Failed to read `fil.py`: No such file or directory`.
 
     Treff på tekst inne i kodeutdrag (f.eks. en strengvariabel med samme ordlyd)
     ignoreres fordi slike linjer ikke starter med en av feil-markørene.
     """
-    monster = (
-        "no solution found when resolving tool dependencies",
-        "was not found in the package registry",
-        "failed to fetch",
-        "failed to download",
-        "no such file or directory",
-        "command not found",
-    )
     for line in stderr.splitlines():
-        stripped = line.strip()
-        lower = stripped.lower()
-        if not (line.startswith("error: ") or stripped.startswith(("×", "╰"))):  # noqa: RUF001
+        text = error_message(line)
+        if text is None:
             continue
-        if any(m in lower for m in monster):
+        lower = text.lower()
+        if any(m in lower for m in UV_FEILMELDINGER):
+            return True
+        if OS_FEILMELDING.fullmatch(lower):
             return True
     return False
 
 
 def missing_tool_message(
-    output: subprocess.CompletedProcess, tool: str, install_command: str
+    output: subprocess.CompletedProcess,
+    tool: str,
+    install_command: str,
 ) -> str | None:
-    """Returner en feilmelding hvis kommandoen feilet fordi selve verktøyet mangler.
+    """Returner en feilmelding hvis kommandoen feilet fordi verktøyet mangler.
 
     Sjekken kjøres bare når kommandoen faktisk feilet.
     """
     if output.returncode == 0:
         return None
     if is_missing_tool_error(output.stderr):
-        return (
-            f"{tool} er ikke installert.\n\n"
-            f"Installer med:\n    {install_command}\n\n"
-            f"{output_text(output)}"
-        )
+        details = output_text(output)
+        return f"{tool} er ikke installert.\n\n{install_command}\n\n{details}"
     return None
 
 
 def assert_ruff_check(root: Path) -> None:
     """Kjør `ruff check .` i root og feil med tydelig melding hvis det er avvik."""
     cmd = ruff_command()
-    assert cmd, f"ruff er ikke installert.\n\nInstaller med:\n    {INSTALL_RUFF}\n"
+    assert cmd, f"ruff er ikke installert.\n\n{INSTALL_RUFF}\n"
     output = run([*cmd, "check", "."], root)
     message = missing_tool_message(output, "ruff", INSTALL_RUFF)
     if message is not None:
@@ -143,16 +181,16 @@ def assert_ruff_check(root: Path) -> None:
 def assert_ruff_format(root: Path) -> None:
     """Kjør `ruff format --check .` i root og feil hvis koden ikke er formatert."""
     cmd = ruff_command()
-    assert cmd, f"ruff er ikke installert.\n\nInstaller med:\n    {INSTALL_RUFF}\n"
+    assert cmd, f"ruff er ikke installert.\n\n{INSTALL_RUFF}\n"
     output = run([*cmd, "format", "--check", "."], root)
     message = missing_tool_message(output, "ruff", INSTALL_RUFF)
     if message is not None:
         raise AssertionError(message)
     assert output.returncode == 0, (
         f"ruff format --check . feilet.\n\n"
-        f"Koden er ikke formatert med ruff. Kjør `ruff format` for å rette "
-        f"formateringen\nautomatisk, deretter `ruff format --check .` for å "
-        f"bekrefte.\n\n"
+        f"Koden er ikke formatert med ruff. Kjør `ruff format` for å rette\n"
+        f"formateringen automatisk, deretter `ruff format --check .` for å\n"
+        f"bekrefte at alt er rettet.\n\n"
         f"Arbeidskatalog: {root}\n\n{output_text(output)}"
     )
 
@@ -168,9 +206,33 @@ def test_ruff_format() -> None:
 # --- Røyktester: lint-testen skal fange villete lint- og formatfeil ---
 
 
+# Fast, kjent minimal ruff-konfigurasjon som brukes bare når prosjektet ikke
+# har noen leverte `ruff.toml` å kopiere. Premissene røyktestene hviler på er
+# satt eksplisitt her: `ruff check` fanger ubrukte importer (F401), og
+# `ruff format` krever doble sitater.
+ROYKTEST_RUFF_TOML = """\
+[lint]
+select = ["F"]
+
+[format]
+quote-style = "double"
+"""
+
+
 def make_project(root: Path, source: str) -> None:
-    """Opprett et lite prosjekt i root med én modul med gitt kildekode."""
+    """Opprett et lite prosjekt i root med én modul med gitt kildekode.
+
+    Den leverte `ruff.toml` kopieres inn i det temporære prosjektet, slik at
+    røyktestene tester paret testfil + konfigurasjon slik det faktisk skal
+    kopieres. Finnes ingen `ruff.toml` i prosjektroten, brukes den faste,
+    kjente konfigurasjonen i stedet.
+    """
     (root / "modul.py").write_text(source, encoding="utf-8")
+    levert = project_root() / "ruff.toml"
+    if levert.is_file():
+        shutil.copyfile(levert, root / "ruff.toml")
+    else:
+        (root / "ruff.toml").write_text(ROYKTEST_RUFF_TOML, encoding="utf-8")
 
 
 def failed_check(action: Callable[[], None], context: str) -> str:
@@ -205,7 +267,7 @@ def test_royktest_villet_formatfeil_feiler() -> None:
             "format-sjekken på et prosjekt med villet formatfeil",
         )
     assert "ruff format --check . feilet" in message
-    assert "ruff format" in message
+    assert "Kjør `ruff format`" in message
 
 
 def test_royktest_rent_prosjekt_gar_gront() -> None:
@@ -223,44 +285,36 @@ def test_royktest_rent_prosjekt_gar_gront() -> None:
 def failed_output(stderr: str) -> subprocess.CompletedProcess:
     """Returner et resultat som ser ut som en feilet kommando med gitt stderr."""
     return subprocess.CompletedProcess(
-        args=["ruff", "check", "."], returncode=2, stdout="", stderr=stderr
+        args=["ruff", "check", "."],
+        returncode=2,
+        stdout="",
+        stderr=stderr,
     )
 
 
 def test_missing_tool_message_fanger_uvx_og_os_meldinger() -> None:
     # Meldingsform 1: uvx/uv sin "no solution found" (verktøyet finnes ikke
     # i registret, eller avhengighetene kan ikke løses).
-    uvx_form = (
-        "  × No solution found when resolving tool dependencies:\n"  # noqa: RUF001
-        "  ╰─▶ Because ruff was not found in the package registry and you "
-        "require ruff, we can\n"
-        "      conclude that your requirements are unsatisfiable.\n"
-    )
+    uvx_form = "  \u00d7 No solution found when resolving tool dependencies\n"
     # Meldingsform 2: operativsystemet sin "no such file or directory".
     os_form = "error: No such file or directory (os error 2)\n"
     for stderr in (uvx_form, os_form):
         output = failed_output(stderr)
         message = missing_tool_message(output, "ruff", INSTALL_RUFF)
-        assert message is not None, f"manglende verktøy burde gjenkjennes for meldingen:\n{stderr}"
-        assert "ruff er ikke installert" in message, (
-            f"meldingen skal nevne verktøyet. Melding:\n{message}"
-        )
-        assert INSTALL_RUFF in message, (
-            f"meldingen skal ha hint om installering. Melding:\n{message}"
-        )
+        assert message is not None, f"bør gjenkjennes:\n{stderr}"
+        assert "ruff er ikke installert" in message, f"skal nevne verktøy:\n{message}"
+        assert INSTALL_RUFF in message, f"skal ha hint om installering:\n{message}"
 
 
 def test_is_missing_tool_error_fanger_ovrige_uvx_meldinger() -> None:
     tilfeller = [
-        "  × Failed to fetch: `ruff`\n",  # noqa: RUF001
-        "  × Failed to download `ruff`\n",  # noqa: RUF001
-        "  ╰─▶ Because ruff was not found in the package registry\n",
+        "  \u00d7 Failed to fetch: `ruff`\n",
+        "  \u00d7 Failed to download `ruff`\n",
+        "  \u2570\u2500\u25b6 Because ruff was not found in the package registry\n",
         "error: command not found\n",
     ]
     for stderr in tilfeller:
-        assert is_missing_tool_error(stderr), (
-            f"manglende verktøy burde gjenkjennes for meldingen:\n{stderr}"
-        )
+        assert is_missing_tool_error(stderr), f"bør gjenkjennes:\n{stderr}"
 
 
 def test_is_missing_tool_error_ignorerer_vanlige_feil() -> None:
@@ -269,5 +323,8 @@ def test_is_missing_tool_error_ignorerer_vanlige_feil() -> None:
     assert not is_missing_tool_error(stderr)
     # Mønstre som bare dukker opp som tekst (f.eks. i et kodeutdrag) skal heller
     # ikke utløse, fordi linjen ikke starter med en feil-markør.
-    stderr = 'Would reformat: modul.py\n error: failed to fetch\n    "failed to fetch",\n'
+    stderr = 'modul.py\n error: failed to fetch\n    "failed to fetch",\n'
+    assert not is_missing_tool_error(stderr)
+    # ruff sine egne IO-feil er ikke manglende verktøy.
+    stderr = "error: Failed to read `modul.py`: No such file or directory\n"
     assert not is_missing_tool_error(stderr)

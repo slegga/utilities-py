@@ -10,6 +10,7 @@ fields.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -24,7 +25,7 @@ def _perl_split(string: str, sep: str) -> list[str]:
 class CSVLastPass:
     """Reader for LastPass-style CSV files."""
 
-    def read(self, file: str, args: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    def read(self, file: str | Path, args: dict[str, Any] | None = None) -> list[dict[str, str]]:
         """Read ``file`` and return a list of row dicts keyed by header column."""
         args = args or {}
         sep = args.get("sep_char", ",")
@@ -39,8 +40,7 @@ class CSVLastPass:
         inrow = False
         inquote = False
 
-        with open(file, encoding="utf-8") as fh:
-            lines = fh.read().split("\n")
+        lines = Path(file).read_text(encoding="utf-8").split("\n")
         # A trailing newline yields a final empty element; drop it like chomp+EOF.
         if lines and lines[-1] == "":
             lines.pop()

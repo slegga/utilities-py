@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import time
 from pathlib import Path
@@ -39,7 +38,7 @@ class YAMLExporter(Exporter):
     def export(self, args: dict, data: Any) -> Any:
         if not args.get("file"):
             raise ValueError("Missing argument file")
-        with open(args["file"], "w", encoding="utf-8") as fh:
+        with Path(args["file"]).open("w", encoding="utf-8") as fh:
             yaml.safe_dump(data, fh, allow_unicode=True, default_flow_style=False)
         return data
 
@@ -77,7 +76,7 @@ class PassCodeExporter(Exporter):
                         continue
                     raise ValueError("Missing file path")
                 if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
-                    nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])
+                    nr["filepath"] = "jobb/" + Path(nr["filepath"]).name
                 formatted.append(nr)
         elif data and "SYSTEM" in data[0]:
             accepted = {
@@ -147,10 +146,10 @@ class PassCodeExporter(Exporter):
         if keep == "b":
             f["filepath"] += "-" + (f.get("username") or "")
         elif keep == "e":
-            old = os.path.basename(f["filepath"])
-            dir_ = os.path.dirname(f["filepath"])
+            path = Path(f["filepath"])
+            old = path.name
             new = ask(f"Enter new filename old is {old}: ", re.compile(r".*"))
-            f["filepath"] = (dir_ + "/" if dir_ else "") + new
+            f["filepath"] = str(path.parent / new)
 
         for k in PassCodeFile.okeys():
             if f.get(k):

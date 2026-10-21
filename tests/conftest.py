@@ -1,8 +1,8 @@
-import os
+from pathlib import Path
 
 import pytest
 
-DATA = os.path.join(os.path.dirname(__file__), "data")
+DATA = Path(__file__).resolve().parent / "data"
 
 
 @pytest.fixture

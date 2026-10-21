@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import base64
 import os
+import pprint
+import re
 import shutil
 import stat
 import subprocess
@@ -38,7 +40,6 @@ def cmd_alert(argv: list[str] | None = None) -> int:
         text += line
         if i >= 50:
             break
-    import re
 
     if not text or not re.search(r"\w", text):
         return 0
@@ -93,7 +94,6 @@ def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
     path = Path(args.file)
     if not path.is_file():
         raise SystemExit(f"Can't open file {args.file}, file does not exists")
-    import pprint
 
     dump = EmailToHash().msgtext2hash(path.read_text(encoding="utf-8", errors="replace"))
     pprint.pprint(dump)
@@ -110,25 +110,25 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     homedir = args.homedir or os.environ.get("HOME", "")
-    cfg_file = os.path.join(homedir, "etc", "file-forwarder.cfg.yml")
-    done_file = os.path.join(homedir, "etc", "file-forwarder.done.yml")
+    cfg_file = Path(homedir) / "etc" / "file-forwarder.cfg.yml"
+    done_file = Path(homedir) / "etc" / "file-forwarder.done.yml"
 
-    Path(done_file).touch(exist_ok=True)
-    print("Read config file " + cfg_file)
-    with open(cfg_file, encoding="utf-8") as fh:
+    done_file.touch(exist_ok=True)
+    print(f"Read config file {cfg_file}")
+    with cfg_file.open(encoding="utf-8") as fh:
         config = yaml.safe_load(fh) or {}
-    with open(done_file, encoding="utf-8") as fh:
+    with done_file.open(encoding="utf-8") as fh:
         done = yaml.safe_load(fh) or {}
 
     for source_dir, destinations in config.items():
-        if not os.path.isdir(source_dir):
+        if not Path(source_dir).is_dir():
             raise SystemExit(f"Source directory: {source_dir} does not exists")
         for destination, dest_cfg in (destinations or {}).items():
-            if not os.path.isdir(destination):
+            if not Path(destination).is_dir():
                 if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
                     raise SystemExit(f"Destination: {destination} is not a directory.")
                 subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
-                if not os.path.isdir(destination):
+                if not Path(destination).is_dir():
                     raise SystemExit(
                         f"Destination {destination} is not a directory or did not mount."
                     )
@@ -138,13 +138,13 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
             for cpfile in candidates:
                 src = source_dir + cpfile
                 dst = destination + cpfile
-                if os.path.isdir(src):
-                    if not os.path.isdir(dst):
-                        os.mkdir(dst)
+                if Path(src).is_dir():
+                    if not Path(dst).is_dir():
+                        Path(dst).mkdir()
                 elif (
-                    os.path.exists(dst)
+                    Path(dst).exists()
                     and not os.access(dst, os.W_OK)
-                    and os.path.getsize(src) == os.path.getsize(dst)
+                    and Path(src).stat().st_size == Path(dst).stat().st_size
                 ):
                     print(f"{dst} exists. Do notthing")
                 else:
@@ -152,7 +152,7 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
                     shutil.copy(src, dst)
                     print(f"{cpfile} has been copied")
                 done.setdefault(source_dir, []).append(cpfile)
-                with open(done_file, "w", encoding="utf-8") as fh:
+                with done_file.open("w", encoding="utf-8") as fh:
                     yaml.safe_dump(done, fh, allow_unicode=True)
     print("Finished!")
     return 0
@@ -160,8 +160,9 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
 
 def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
     """file-rights-debug - analyse why a file is not readable by a user."""
-    import grp
-    import pwd
+    # Lazy med vilje: pwd/grp finnes bare på Unix.
+    import grp  # noqa: PLC0415
+    import pwd  # noqa: PLC0415
 
     parser = argparse.ArgumentParser(
         prog="file-rights-debug",
@@ -186,10 +187,10 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
                 user_rwx = (mode & stat.S_IRWXU) >> 6
                 group_rwx = (mode & stat.S_IRWXG) >> 3
                 other_rwx = mode & stat.S_IRWXO
-                if os.path.islink(tf):
-                    link = os.readlink(tf)
-                    if link and not first and link != str(tf):
-                        links.append(Path(link))
+                if tf.is_symlink():
+                    link = tf.readlink()
+                    if link != Path() and not first and link != tf:
+                        links.append(link)
                         break
             first = False
             result.append(
@@ -221,7 +222,7 @@ def cmd_unixtid(argv: list[str] | None = None) -> int:
         dt = datetime.fromtimestamp(int(argv[0]), tz=timezone.utc)
         print(dt.strftime("%Y-%m-%d %H:%M:%S"))
     else:
-        print(int(datetime.now().timestamp()))
+        print(int(datetime.now(tz=timezone.utc).timestamp()))
     return 0
 
 
@@ -236,6 +237,6 @@ def cmd_b64d(argv: list[str] | None = None) -> int:
 
 def cmd_winord(argv: list[str] | None = None) -> int:
     """winord - tile/arrange windows using wmctrl (Linux/X11 only)."""
-    from .winord import main as winord_main
+    from .winord import main as winord_main  # noqa: PLC0415
 
     return winord_main(argv)

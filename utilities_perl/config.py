@@ -15,7 +15,7 @@ import yaml
 
 
 def _load_yaml(path: Path) -> Any:
-    with open(path, encoding="utf-8") as fh:
+    with path.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
@@ -27,7 +27,7 @@ class GetCommonConfig:
             config_dir = (
                 os.environ["COMMON_CONFIG_DIR"]
                 if os.environ.get("COMMON_CONFIG_DIR")
-                else os.path.join(os.environ.get("HOME", ""), "etc")
+                else Path(os.environ.get("HOME", "")) / "etc"
             )
         self.config_dir = Path(config_dir)
         self.debug = debug
@@ -55,10 +55,10 @@ class GetCommonConfig:
 
         ret["moniker"] = moniker
         ret["mojo_log_path"] = str(Path(raw["common_config"]["mojo_log_path"]) / f"{moniker}.log")
-        secrets_dir = os.environ.get("COMMON_CONFIG_DIR") or os.path.join(
-            os.environ.get("HOME", ""), "etc"
+        secrets_dir = Path(
+            os.environ.get("COMMON_CONFIG_DIR") or Path(os.environ.get("HOME", "")) / "etc"
         )
-        secrets_text = Path(secrets_dir, "secrets.txt").read_text(encoding="utf-8")
+        secrets_text = (secrets_dir / "secrets.txt").read_text(encoding="utf-8")
         ret["secrets"] = [s for s in secrets_text.split() if s]
         ret["hypnotoad"] = self._get_hypnotoad_config(moniker, cfg)
 

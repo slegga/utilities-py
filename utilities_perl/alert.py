@@ -9,7 +9,9 @@ from __future__ import annotations
 import getpass
 import json
 import os
+import re
 import socket
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -29,8 +31,8 @@ class Alert:
         url: str = DEFAULT_URL,
     ) -> None:
         if configfile is None:
-            base = os.environ.get("CONFIG_DIR") or os.path.join(os.environ.get("HOME", ""), "etc")
-            configfile = os.path.join(base, "groupme-bot.yml")
+            base = Path(os.environ.get("CONFIG_DIR") or Path(os.environ.get("HOME", "")) / "etc")
+            configfile = base / "groupme-bot.yml"
         self.configfile = Path(configfile)
         self.dryrun = dryrun
         self.url = url
@@ -39,14 +41,12 @@ class Alert:
     @property
     def config(self) -> dict[str, Any]:
         if self._config is None:
-            with open(self.configfile, encoding="utf-8") as fh:
+            with self.configfile.open(encoding="utf-8") as fh:
                 self._config = yaml.safe_load(fh)
         return self._config
 
     def groupme(self, message: str, bot: str | None = None) -> bool | None:
         """Send ``message`` to GroupMe via ``bot`` (defaults to ``default_bot``)."""
-        import re
-
         if not re.search(r"\w", message or ""):
             return None
         bot = bot or self.config.get("default_bot")
@@ -60,11 +60,16 @@ class Alert:
             print(json.dumps(payload) + self.url)
             return None
 
+        scheme = urllib.parse.urlparse(self.url).scheme
+        if scheme not in ("http", "https"):
+            raise ValueError(f"Unsupported URL scheme {scheme!r} in {self.url!r}")
+
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
+        # Scheme over er kontrollert til http/https før URL-en åpnes.
+        req = urllib.request.Request(  # noqa: S310
             self.url, data=data, headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req) as resp:  # noqa: S310
             code = resp.getcode()
             if 200 <= code < 300:
                 return True

@@ -40,8 +40,6 @@ def test_unixtid_now(capsys):
 
 
 def test_dump_email_hash(capsys, data_dir):
-    import os
-
-    cli.cmd_dump_email_hash([os.path.join(data_dir, "heisan.txt")])
+    cli.cmd_dump_email_hash([str(data_dir / "heisan.txt")])
     out = capsys.readouterr().out
     assert "header" in out

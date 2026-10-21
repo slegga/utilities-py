@@ -36,7 +36,7 @@ def load_rekkefoelge(path: Path | str) -> list[str]:
     p = Path(path)
     if not p.exists():
         return []
-    with open(p, encoding="utf-8") as f:
+    with p.open(encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if isinstance(data, list):
         return [str(item) for item in data]
@@ -122,7 +122,7 @@ def myrowsort(
     return mytextsort(list(data.keys()), rekkefoelge)
 
 
-def ctable(
+def ctable(  # noqa: C901
     data: Sequence[dict[str, Any]],
     category: str,
     columns: list[str] | None = None,
@@ -189,7 +189,7 @@ def ctable(
 
 def clist(
     data: Sequence[dict[str, Any]],
-    category: str,
+    category: str,  # noqa: ARG001
     bindword: str = "og",
     rekkefoelge: Sequence[str] | None = None,
 ) -> str:
@@ -220,7 +220,7 @@ def clist(
     return ", ".join(rest) + " " + bindword + " " + last
 
 
-def gterning(number: int, offset: int = 1, range_: int = 1) -> tuple[int, str]:
+def gterning(number: int, offset: int = 1, range_: int = 1) -> tuple[int, str]:  # noqa: ARG001
     """Generer terningområde-tekst for en fordeling over *number* terningslag.
 
     Port av Perl-funksjonen i ``osr-rpg/bin/md-update.pl``.

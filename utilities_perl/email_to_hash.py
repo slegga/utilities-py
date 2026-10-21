@@ -11,6 +11,7 @@ import base64
 import copy
 import quopri
 import re
+import tempfile
 from typing import Any
 
 
@@ -40,7 +41,7 @@ def _decode_b64(text: str, charset: str | None = None) -> str:
 class EmailToHash:
     """Parse raw email MIME text into nested dicts."""
 
-    def __init__(self, tmpdir: str = "/tmp") -> None:
+    def __init__(self, tmpdir: str = tempfile.gettempdir()) -> None:
         self.tmpdir = tmpdir
 
     # -- header / parameter block parsing -------------------------------------
@@ -78,15 +79,14 @@ class EmailToHash:
                 multiline = True
             elif re.match(r"^\-\-\_.+\_$", line):
                 k = None
+            elif line.startswith("From ") and len(ret) == 0:
+                ret["heading"] = ret.get("heading", "") + line
+            elif re.match(r"^([\w\-]+):(\S.*)$", line):
+                m = re.match(r"^([\w\-]+):(\S.*)$", line)
+                k = m.group(1)
+                _add(ret, k, m.group(2))
             else:
-                if line.startswith("From ") and len(ret) == 0:
-                    ret["heading"] = ret.get("heading", "") + line
-                elif re.match(r"^([\w\-]+):(\S.*)$", line):
-                    m = re.match(r"^([\w\-]+):(\S.*)$", line)
-                    k = m.group(1)
-                    _add(ret, k, m.group(2))
-                else:
-                    multiline = True
+                multiline = True
 
         ret = self.hash_traverse(ret, self._split_semicolon)
         return self.hash_traverse(ret, self._extract_params)
@@ -106,7 +106,7 @@ class EmailToHash:
         return value, "continue"
 
     @staticmethod
-    def _extract_params(v: Any, key: str | None) -> tuple[Any, str]:
+    def _extract_params(v: Any, _key: str | None) -> tuple[Any, str]:
         if isinstance(v, dict) and isinstance(v.get("a"), list):
             keep = []
             for item in v["a"]:

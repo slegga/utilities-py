@@ -100,8 +100,10 @@ def _ask_stdin(hidden: bool | None = None) -> str:
 def _read_single_key() -> str:
     """Read a single keypress without requiring Enter (best effort)."""
     try:
-        import termios
-        import tty
+        # Lazy med vilje: termios/tty finnes ikke overalt, og importfeil skal
+        # falle stille tilbake til readline.
+        import termios  # noqa: PLC0415
+        import tty  # noqa: PLC0415
 
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
