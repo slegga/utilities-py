@@ -129,6 +129,60 @@ offset, text = gterning(1, 1, 3)
 uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
 ```
 
+## Delbar lint-test (ruff)
+
+Lint-testen gjør linting til en del av de lokale testene i stedet for noe som
+først skjer i review og commit. Filen er portabel og kopieres uendret mellom
+Python-repoer. Kilde er dette repoet (`utilities-py`).
+
+### Dette kopieres
+
+| Fil | Legges i | Merknad |
+| --- | --- | --- |
+| `tests/test_lint.py` | målrepoets testkatalog (`tests/` eller `test/`) | Kopieres **uendret**, uten repo-spesifikke tilpassinger |
+| `ruff.toml` | målrepoets rot | Standard ruff-konfigurasjon som følger testen |
+
+### Slik tas filen i bruk
+
+1. Kopier `tests/test_lint.py` til testkatalogen (`tests/` eller `test/`).
+2. Kopier `ruff.toml` til rotkatalogen i repoet.
+3. Legg `ruff` inn som dev-avhengighet, for eksempel `uv add --dev ruff`
+   eller `uv add --optional dev ruff`. Uten dev-avhengighet brukes
+   `uvx ruff` som fallback, og krever da `uvx` på `PATH`.
+4. Kjør testene slik du ellers gjør — lint-testen inngår da i den lokale
+   testkjøringen:
+
+   ```bash
+   uv run --with pytest pytest
+   ```
+
+### Hva testen sjekker
+
+- `ruff check .` med bredt regelsett (styrt av `select`/`ignore` i `ruff.toml`)
+- `ruff format --check .` for formatering
+
+Feiler en av sjekkene, forteller feilmeldingen hva som må fikses:
+`ruff check --fix` retter lint-varsel, `ruff format` retter formateringen.
+Kjør deretter sjekken på nytt for å bekrefte at alt er rettet.
+
+### Eksisterende lint-konfigurasjon i målrepoet
+
+Meld fra om hva som fantes av lint-konfigurasjon i målrepoet før den
+overskrives — for eksempel en `[tool.ruff]`-blokk i `pyproject.toml`, en
+eldre `ruff.toml` eller et annet lint-oppsett. Notér funnet der det passer
+(commit-melding, issue eller notat).
+
+Deretter overskrives den gamle konfigurasjonen med standarden som følger
+testen: `ruff.toml` legges i rotkatalogen og erstatter konfigurasjonen som
+var der fra før. Fjern eventuell eldre ruff-konfigurasjon den avløser (for
+eksempel `[tool.ruff]`-blokka i `pyproject.toml`), slik at det ikke ligger
+to konfigurasjoner som kjemper om hvilken som gjelder.
+
+Regelsettet i `ruff.toml` er satt så komplett som praktisk mulig. Hvor
+strengt nivået skal være i et gitt repo er et valg som bør avklares med den
+som eier kravet — løft slike valg til menneske i stedet for å avgjøre dem
+stille.
+
 ## Design conventions
 
 Carried over from `utilities-perl/AGENTS.md`:
