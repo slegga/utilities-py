@@ -129,6 +129,77 @@ offset, text = gterning(1, 1, 3)
 uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
 ```
 
+## Sjekkeskript for lint-tester (`scripts/sjekk-lint-tester.py`)
+
+Skriptet går gjennom alle repoene i prosjektet og sjekker at de delbare
+lint-testene er på plass og i tråd med standarden. Det er et uv-skript
+(PEP 723) og kjøres direkte:
+
+```bash
+./scripts/sjekk-lint-tester.py
+```
+
+På systemer med `coreutils` eldre enn 8.30 (uten `env -S`): `uv run --script
+scripts/sjekk-lint-tester.py`. Skriptet trenger ingen installasjon — uv
+løser avhengighetene (PyYAML, tomli) automatisk. Et kort
+[arkitekturnotat](docs/sjekk-lint-tester.md) ligger i `docs/`.
+
+### Hvordan skriptet finner repoene
+
+Uten argumenter leses `config.yaml` i meta-privat: `repogruppe` peker på
+repolista (for eksempel `repos-all.txt` — ett reponavn per linje,
+`#`-linjer hoppes over) og `repos_dir` sier hvor repoene ligger.
+Meta-privat finnes med `--meta-rot`, miljøvariabelen `META_PRIVAT_ROT`
+eller ved å søke oppover fra skriptet og fra arbeidskatalogen. Med
+`--repo-rot` og/eller `--repo-liste` kjøres skriptet mot en annen rot
+eller liste — for eksempel mot et fikstur-tre i testene.
+
+### Statusverdier og exit-kode
+
+| Status | Betydning |
+| --- | --- |
+| `OK` | Lint-testen er på plass, inngår i den lokale testkjøringen og følger standarden |
+| `mangler` | Lint-testen (`tests/test_lint.py` for Python, `tests/lint.rs` for Rust) finnes ikke |
+| `avvik` | Lint-testen finnes, men noe avviker: den inngår ikke i den lokale testkjøringen, innholdet avviker fra referansefilen, eller lint-konfigurasjonen er ikke standarden |
+| `intet å gjøre` | Repoet har ingen kode (verken Python eller Rust) |
+| `ikke klonet` | Repo-katalogen finnes ikke lokalt; telles i sammendraget, men påvirker ikke exit-koden |
+
+Exit-kode `0` betyr alt OK. Ikke-null exit-kode betyr avvik (eller at
+sjekkene ikke kunne fullføres): `1` når minst ett repo har `mangler`
+eller `avvik`, `2` når skriptet ikke kunne fullføre alle sjekkene (fant
+ikke repolista, eller referansefilene fra sak #2/sak #8 mangler). Dette
+gjør skriptet egnet for automatiserte kontroller.
+
+### Fiks-kommandoene
+
+Skriptet endrer aldri repoene selv (avklaring 5) — for hvert avvik skriver
+det ut konkrete kommandoer som du kopierer og kjører selv:
+
+* **Kopiering av testfiler:** `cp`-kommandoer som kopierer
+  `tests/test_lint.py` (fra `utilities-py`) og `tests/lint.rs` (fra
+  `personlig-py`) inn i målrepoets testkatalog uten endringer (avklaring 4).
+  Den delbare testfilen skal ikke tilpasses det enkelte repoet — den finner
+  prosjektroten relativt til seg selv.
+* **Overskriving av gammel lint-konfigurasjon med standarden** (avklaring 8):
+  `cp` av standard `ruff.toml` fra `utilities-py`, fjerning av
+  overskrivende konfig-filer (`.ruff.toml`, `clippy.toml`, `rustfmt.toml`
+  med flere) og kommandoer som fjerner `[tool.ruff]`-seksjoner fra
+  `pyproject.toml` og `[lints]`-innstillinger fra `Cargo.toml`. Skriptet
+  skriver ut dagens innhold først, slik at avvikende konfigurasjon kan
+  vurderes før den overskrives.
+
+### Klassifisering og sjekk av lokal testkjøring
+
+Hvert repo klassifiseres som **Python**, **Rust**, **begge deler** eller
+**ingen kode** ut fra `pyproject.toml`/`*.py` og `Cargo.toml`/`*.rs`.
+Repoer med begge deler sjekkes for begge lint-testene.
+
+For Python sjekkes det at `tests/test_lint.py` (eventuelt `test/`) ville
+blitt samlet inn av pytest, ut fra repoets `testpaths` og `python_files`
+i pytest-oppsettet. For Rust sjekkes det at `tests/lint.rs` kjøres av
+`cargo test` — som integrasjonstest under `tests/` eller via et eksplisitt
+`[[test]]`-mål i `Cargo.toml`.
+
 ## Design conventions
 
 Carried over from `utilities-perl/AGENTS.md`:
