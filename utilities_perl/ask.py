@@ -61,7 +61,9 @@ def _ask_any_key(question: str) -> str:
     return answer
 
 
-def _ask_choice(question: str, choices, options: dict | None, default: str | None) -> str | None:
+def _ask_choice(
+    question: str, choices, options: dict | None, default: str | None
+) -> str | None:
     """Ask until an acceptable answer is given, and return it."""
     is_regex = isinstance(choices, (re.Pattern,))
     while True:
@@ -120,8 +122,8 @@ def _read_single_key() -> str:
     try:
         # Lazy med vilje: termios/tty finnes ikke overalt, og importfeil skal
         # falle stille tilbake til readline.
-        import termios  # noqa: PLC0415
-        import tty  # noqa: PLC0415
+        import termios
+        import tty
 
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
@@ -130,5 +132,5 @@ def _read_single_key() -> str:
             return sys.stdin.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    except Exception:
+    except Exception:  # noqa: BLE001 -- bevisst best-effort-fallback til readline
         return sys.stdin.readline().rstrip("\n")

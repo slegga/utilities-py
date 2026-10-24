@@ -14,10 +14,6 @@ def _extname(path: Any) -> str:
     return Path(str(path)).suffix.lstrip(".")
 
 
-def _quote_ident(name: str) -> str:
-    return ".".join('"' + part.strip().replace('"', '""') + '"' for part in name.split("."))
-
-
 class Importer:
     """Base class for importer plugins."""
 
@@ -57,11 +53,10 @@ class SQLiteTableImporter(Importer):
         return "type" in args and str(args["type"]).lower() == "sqlitetable"
 
     def importx(self, args: dict) -> list[dict[str, Any]]:
-        table = str(args["table"])
         conn = sqlite3.connect(args["file"])
         try:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(f"select * from {_quote_ident(table)}").fetchall()  # noqa: S608
+            rows = conn.execute(f"select * from {args['table']}").fetchall()
             return [dict(row) for row in rows]
         finally:
             conn.close()

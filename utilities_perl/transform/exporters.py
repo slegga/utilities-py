@@ -67,7 +67,16 @@ class PassCodeExporter(Exporter):
             self._check_duplicate_and_store_file(entry, args)
 
     def _format_lastpass_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
-        accepted = {"grouping", "name", "password", "username", "url", "totp", "fav", "extra"}
+        accepted = {
+            "grouping",
+            "name",
+            "password",
+            "username",
+            "url",
+            "totp",
+            "fav",
+            "extra",
+        }
         formatted: list[dict[str, Any]] = []
         for row in data:
             _check_keys(row, accepted, "Last Pass format")
@@ -78,7 +87,9 @@ class PassCodeExporter(Exporter):
 
     def _lastpass_entry(self, row: dict[str, Any], args: dict) -> dict[str, Any] | None:
         nr: dict[str, Any] = {}
-        nr["filepath"] = f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
+        nr["filepath"] = (
+            f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
+        )
         for key in ("password", "username", "url"):
             nr[key] = row.get(key)
         nr["changed"] = time.strftime("%Y-%m-%d")
@@ -94,7 +105,7 @@ class PassCodeExporter(Exporter):
                 return None
             raise ValueError("Missing file path")
         if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
-            nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])  # noqa: PTH119
+            nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])
         return nr
 
     def _format_passordfil_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
@@ -117,12 +128,14 @@ class PassCodeExporter(Exporter):
                 formatted.append(entry)
         return formatted
 
-    def _passordfil_entry(self, row: dict[str, Any], args: dict) -> dict[str, Any] | None:
+    def _passordfil_entry(
+        self, row: dict[str, Any], args: dict
+    ) -> dict[str, Any] | None:
         filename = row.get("SYSTEM") or row.get("url")
         if filename is None:
             raise ValueError("missing filename source")
         filename = re.sub(r"\s", "_", filename)
-        filename = re.sub(r"^https?+://", "", filename)
+        filename = re.sub(r"^https?://", "", filename)
         filename = re.sub(r"[/:].*", "", filename)
         if not filename:
             if not row.get("password"):
@@ -167,8 +180,8 @@ class PassCodeExporter(Exporter):
         if keep == "b":
             f["filepath"] += "-" + (f.get("username") or "")
         elif keep == "e":
-            old = os.path.basename(f["filepath"])  # noqa: PTH119
-            dir_ = os.path.dirname(f["filepath"])  # noqa: PTH120
+            old = os.path.basename(f["filepath"])
+            dir_ = os.path.dirname(f["filepath"])
             new = ask(f"Enter new filename old is {old}: ", re.compile(r".*"))
             f["filepath"] = (dir_ + "/" if dir_ else "") + new
 

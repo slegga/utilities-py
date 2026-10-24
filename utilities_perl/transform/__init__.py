@@ -33,10 +33,14 @@ class Transform:
             plugin = cls()
             if plugin.is_accepted(args):
                 if chosen is not None:
-                    raise RuntimeError(f"More than one {kind} for {json.dumps(args, default=str)}")
+                    raise RuntimeError(
+                        f"More than one {kind} for {json.dumps(args, default=str)}"
+                    )
                 chosen = plugin
         if chosen is None:
-            raise RuntimeError(f"No {kind}s can handle args: {json.dumps(args, default=str)}")
+            raise RuntimeError(
+                f"No {kind}s can handle args: {json.dumps(args, default=str)}"
+            )
         return chosen
 
     @property

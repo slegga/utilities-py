@@ -30,7 +30,9 @@ class Alert:
         url: str = DEFAULT_URL,
     ) -> None:
         if configfile is None:
-            base = Path(os.environ.get("CONFIG_DIR") or Path(os.environ.get("HOME", "")) / "etc")
+            base = Path(
+                os.environ.get("CONFIG_DIR") or Path(os.environ.get("HOME", "")) / "etc"
+            )
             configfile = base / "groupme-bot.yml"
         self.configfile = Path(configfile)
         self.dryrun = dryrun
@@ -60,10 +62,10 @@ class Alert:
             return None
 
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(  # noqa: S310
+        req = urllib.request.Request(
             self.url, data=data, headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req) as resp:  # noqa: S310
+        with urllib.request.urlopen(req) as resp:
             code = resp.getcode()
             if 200 <= code < 300:
                 return True

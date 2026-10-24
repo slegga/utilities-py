@@ -102,7 +102,7 @@ def _decode_single_part(v: dict, ct: Any) -> None:
 class EmailToHash:
     """Parse raw email MIME text into nested dicts."""
 
-    def __init__(self, tmpdir: str = "/tmp") -> None:  # noqa: S108
+    def __init__(self, tmpdir: str = "/tmp") -> None:
         self.tmpdir = tmpdir
 
     # -- header / parameter block parsing -------------------------------------
@@ -207,7 +207,11 @@ class EmailToHash:
             ctv = header_d["Content-Type"]
             if not isinstance(ctv, (dict, list)):
                 body = {"content": body, "Content-Type": ctv}
-            elif isinstance(ctv, dict) and "a" in ctv and re.match(r"^multipart", ctv["a"][0]):
+            elif (
+                isinstance(ctv, dict)
+                and "a" in ctv
+                and re.match(r"^multipart", ctv["a"][0])
+            ):
                 body = self.multipart(ctv, body)
             elif (
                 isinstance(ctv, dict)
@@ -217,7 +221,9 @@ class EmailToHash:
                 body = {"content": body, "Content-Type": ctv}
 
         cte = header_d.get("Content-Transfer-Encoding")
-        if cte and (not isinstance(body, dict) or not body.get("Content-Transfer-Encoding")):
+        if cte and (
+            not isinstance(body, dict) or not body.get("Content-Transfer-Encoding")
+        ):
             if not isinstance(body, dict):
                 body = {"content": body}
             body["Content-Transfer-Encoding"] = cte
@@ -280,7 +286,9 @@ class EmailToHash:
 
     def multipart(self, type_: Any, body: str | None) -> str | None:
         if not isinstance(type_, dict):
-            raise ValueError("Content-Type is not a reference")
+            # Datastrukturvalidering: ValueError beholdes for
+            # oppførselkompatibilitet (se docs/ruff-kompleksitet.md).
+            raise ValueError("Content-Type is not a reference")  # noqa: TRY004
         if not re.match(r"^multipart", type_["a"][0], re.IGNORECASE):
             raise ValueError("Content-Type not like multipart")
         if "boundary" not in type_.get("h", {}):

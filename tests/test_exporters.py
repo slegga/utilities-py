@@ -39,7 +39,9 @@ def test_lastpass_entry_uten_grouping_og_med_dir():
 
 
 def test_lastpass_entry_jobb_mappe_omskrives():
-    entry = PassCodeExporter()._lastpass_entry({"grouping": "Min Jobb mappe", "name": "konto"}, {})
+    entry = PassCodeExporter()._lastpass_entry(
+        {"grouping": "Min Jobb mappe", "name": "konto"}, {}
+    )
     assert entry["filepath"] == "jobb/konto"
 
 
@@ -87,7 +89,9 @@ def test_passordfil_entry_grunnleggende():
 
 
 def test_passordfil_entry_bruker_domene_uten_gruppering():
-    entry = PassCodeExporter()._passordfil_entry({"SYSTEM": "navn", "DOMENE": "eksempel"}, {})
+    entry = PassCodeExporter()._passordfil_entry(
+        {"SYSTEM": "navn", "DOMENE": "eksempel"}, {}
+    )
     assert entry["filepath"] == "eksempel/navn"
 
 

@@ -86,7 +86,10 @@ class TestCtable:
         data = [{"navn": "A", "pris": 2, "antall": 3}]
         calculated = {"sum": lambda _cat, row: row["pris"] * row["antall"]}
         result = ctable(
-            data, "evner", columns=["navn", "pris", "antall", "sum"], calculated=calculated
+            data,
+            "evner",
+            columns=["navn", "pris", "antall", "sum"],
+            calculated=calculated,
         )
         assert "|6|" in result
 

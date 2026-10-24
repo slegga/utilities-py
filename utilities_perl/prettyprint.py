@@ -76,7 +76,9 @@ def data_to_json_pretty(data: Any, opts: Mapping[str, Any] | None = None) -> str
     if isinstance(data, dict):
         if isinstance(opts.get("order"), list):
             return _req_value_hash(data, new_opts, 0)
-        raise NotImplementedError("data_to_json_pretty without 'order' is not implemented")
+        raise NotImplementedError(
+            "data_to_json_pretty without 'order' is not implemented"
+        )
     raise NotImplementedError("data_to_json_pretty expects a dict at the top level")
 
 
@@ -91,7 +93,9 @@ def _req_key_order(data: Mapping[str, Any], opts: Mapping[str, Any]) -> list[str
     return out
 
 
-def _req_value_hash(data: Mapping[str, Any], opts: Mapping[str, Any], indent: int) -> str:
+def _req_value_hash(
+    data: Mapping[str, Any], opts: Mapping[str, Any], indent: int
+) -> str:
     indent += 1
     indent_text = opts["indent_text"]
     parts: list[str] = []

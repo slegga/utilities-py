@@ -25,14 +25,18 @@ def _perl_split(string: str, sep: str) -> list[str]:
 class CSVLastPass:
     """Reader for LastPass-style CSV files."""
 
-    def read(self, file: str | Path, args: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    def read(
+        self, file: str | Path, args: dict[str, Any] | None = None
+    ) -> list[dict[str, str]]:
         """Read ``file`` and return a list of row dicts keyed by header column."""
         args = args or {}
         sep = args.get("sep_char", ",")
         quote = args.get("quote_char", '"')
         where_to_put_extra = args.get("column_with_extra")
 
-        close_re = re.compile(f"(?<!{re.escape(quote)}){re.escape(quote)}{re.escape(sep)}")
+        close_re = re.compile(
+            f"(?<!{re.escape(quote)}){re.escape(quote)}{re.escape(sep)}"
+        )
 
         hashes: list[dict[str, str]] = []
         keys: list[str] = []
@@ -111,7 +115,12 @@ class CSVLastPass:
         return False
 
     def _quoted_row(
-        self, line: str, hashes: list[dict[str, str]], keys: list[str], sep: str, quote: str
+        self,
+        line: str,
+        hashes: list[dict[str, str]],
+        keys: list[str],
+        sep: str,
+        quote: str,
     ) -> bool:
         """Start en rad med siterte felt. Returnerer ny ``inquote``."""
         row: dict[str, str] = {}

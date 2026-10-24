@@ -28,7 +28,9 @@ from .transform import Transform
 
 def cmd_alert(argv: list[str] | None = None) -> int:
     """alert - pipe text into stdin to send a GroupMe message."""
-    parser = argparse.ArgumentParser(prog="alert", description="Notify with a GroupMe account bot.")
+    parser = argparse.ArgumentParser(
+        prog="alert", description="Notify with a GroupMe account bot."
+    )
     parser.add_argument(
         "--dryrun", action="store_true", help="Print to screen instead of doing changes"
     )
@@ -87,7 +89,9 @@ def cmd_transform(argv: list[str] | None = None) -> int:
 
 def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
     """dump-email-hash - dump the parsed structure of an email file."""
-    parser = argparse.ArgumentParser(prog="dump-email-hash", description="Dump email hash text")
+    parser = argparse.ArgumentParser(
+        prog="dump-email-hash", description="Dump email hash text"
+    )
     parser.add_argument("file", help="Email file to parse")
     args = parser.parse_args(argv)
 
@@ -95,7 +99,9 @@ def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
     if not path.is_file():
         raise SystemExit(f"Can't open file {args.file}, file does not exists")
 
-    dump = EmailToHash().msgtext2hash(path.read_text(encoding="utf-8", errors="replace"))
+    dump = EmailToHash().msgtext2hash(
+        path.read_text(encoding="utf-8", errors="replace")
+    )
     pprint.pprint(dump)
     return 0
 
@@ -145,7 +151,9 @@ def _ensure_destination(destination: str, dest_cfg: object) -> None:
         raise SystemExit(f"Destination: {destination} is not a directory.")
     subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
     if not Path(destination).is_dir():
-        raise SystemExit(f"Destination {destination} is not a directory or did not mount.")
+        raise SystemExit(
+            f"Destination {destination} is not a directory or did not mount."
+        )
 
 
 def _forward_file(src: str, dst: str, cpfile: str) -> None:
@@ -173,8 +181,8 @@ def _should_follow_link(link: str, tf: str, first: bool) -> bool:
 def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
     """file-rights-debug - analyse why a file is not readable by a user."""
     # Lazy med vilje: pwd/grp finnes bare på Unix.
-    import grp  # noqa: PLC0415
-    import pwd  # noqa: PLC0415
+    import grp
+    import pwd
 
     parser = argparse.ArgumentParser(
         prog="file-rights-debug",
@@ -201,7 +209,7 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
                 other_rwx = mode & stat.S_IRWXO
                 if tf.is_symlink():
                     # Rå målstreng: Path.readlink skiller ikke tomt mål fra ".".
-                    link = os.readlink(tf)  # noqa: PTH115
+                    link = os.readlink(tf)
                     if _should_follow_link(link, str(tf), first):
                         links.append(Path(link))
                         break
@@ -222,7 +230,17 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
             tf = tf.parent
         print(
             print_hashes(
-                result, {"columns": ["name", "user", "group", "user_rwx", "group_rwx", "other_rwx"]}
+                result,
+                {
+                    "columns": [
+                        "name",
+                        "user",
+                        "group",
+                        "user_rwx",
+                        "group_rwx",
+                        "other_rwx",
+                    ]
+                },
             )
         )
     return 0
@@ -250,6 +268,6 @@ def cmd_b64d(argv: list[str] | None = None) -> int:
 
 def cmd_winord(argv: list[str] | None = None) -> int:
     """winord - tile/arrange windows using wmctrl (Linux/X11 only)."""
-    from .winord import main as winord_main  # noqa: PLC0415
+    from .winord import main as winord_main
 
     return winord_main(argv)

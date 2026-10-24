@@ -108,13 +108,17 @@ def myrowsort(
                             lookup[key] = int(m.group(1))
                         else:
                             lookup[key] = (
-                                SORT_FALLBACK_OFFSET + ord(key[0]) if key else SORT_FALLBACK_OFFSET
+                                SORT_FALLBACK_OFFSET + ord(key[0])
+                                if key
+                                else SORT_FALLBACK_OFFSET
                             )
                     elif isinstance(val, (int, float)):
                         lookup[key] = int(val)
                     else:
                         lookup[key] = (
-                            SORT_FALLBACK_OFFSET + ord(key[0]) if key else SORT_FALLBACK_OFFSET
+                            SORT_FALLBACK_OFFSET + ord(key[0])
+                            if key
+                            else SORT_FALLBACK_OFFSET
                         )
                 return sorted(data.keys(), key=lambda x: lookup[x])
 
@@ -207,7 +211,7 @@ def _table_row(row: dict[str, Any], columns: list[str], category: str) -> str:
 
 def clist(
     data: Sequence[dict[str, Any]],
-    category: str,  # noqa: ARG001
+    category: str,
     bindword: str = "og",
     rekkefoelge: Sequence[str] | None = None,
 ) -> str:
@@ -230,7 +234,9 @@ def clist(
         Sammenkjedet liste, f.eks. ``"A, B og C"``.
     """
     names = [item["navn"] for item in data]
-    sorted_names = mytextsort(names, rekkefoelge) if rekkefoelge is not None else sorted(names)
+    sorted_names = (
+        mytextsort(names, rekkefoelge) if rekkefoelge is not None else sorted(names)
+    )
     if len(sorted_names) == 1:
         return sorted_names[0]
     last = sorted_names[-1]
@@ -238,7 +244,7 @@ def clist(
     return ", ".join(rest) + " " + bindword + " " + last
 
 
-def gterning(number: int, offset: int = 1, range_: int = 1) -> tuple[int, str]:  # noqa: ARG001
+def gterning(number: int, offset: int = 1, range_: int = 1) -> tuple[int, str]:
     """Generer terningområde-tekst for en fordeling over *number* terningslag.
 
     Port av Perl-funksjonen i ``osr-rpg/bin/md-update.pl``.

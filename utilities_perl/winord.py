@@ -26,7 +26,7 @@ class WinOrd:
         self.windows: list[dict] = []
 
     def get_info(self):
-        resraw = subprocess.run(  # noqa: S602
+        resraw = subprocess.run(
             "wmctrl -d", shell=True, capture_output=True, text=True, check=False
         ).stdout
         active = next((row for row in resraw.splitlines() if "*" in row), "")
@@ -37,7 +37,7 @@ class WinOrd:
         self.x_max = x_res
         self.y_max = y_res - 36
 
-        wmctrl = subprocess.run(  # noqa: S602
+        wmctrl = subprocess.run(
             "wmctrl -Gl", shell=True, capture_output=True, text=True, check=False
         ).stdout
         rows = [re.split(r"\s+", line, maxsplit=7) for line in wmctrl.splitlines()]
@@ -64,7 +64,7 @@ class WinOrd:
                     f"{value['x_pos']},{value['y_pos']},{value['x_size']},{value['y_size']}"
                 )
                 print(resize)
-                subprocess.run(resize, shell=True, check=False)  # noqa: S602
+                subprocess.run(resize, shell=True, check=False)
             i += 1
 
     def main(self):
@@ -79,7 +79,9 @@ class WinOrd:
             if self.horizontal:
                 tot = self.split or len(win)
                 for i, key in enumerate(sorted(win)):
-                    win[key]["x_pos"] = (tot - 1 - i) * int((self.x_min + self.x_max) / tot)
+                    win[key]["x_pos"] = (tot - 1 - i) * int(
+                        (self.x_min + self.x_max) / tot
+                    )
                     win[key]["y_pos"] = self.y_min
                     win[key]["x_size"] = int((self.x_max - self.x_min) / num_win)
                     win[key]["y_size"] = self.y_max - self.y_min
@@ -89,7 +91,9 @@ class WinOrd:
                         (self.x_max - self.x_min) / num_win
                     )
                     win[key]["y_pos"] = self.y_min
-                    win[key]["x_size"] = int((self.x_max - self.x_min) / max(num_win, 1))
+                    win[key]["x_size"] = int(
+                        (self.x_max - self.x_min) / max(num_win, 1)
+                    )
                     win[key]["y_size"] = self.y_max - self.y_min
         self.do_resize()
 
