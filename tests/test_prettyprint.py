@@ -13,15 +13,21 @@ def test_json_easy():
 
 
 def test_json_reorder():
-    out = data_to_json_pretty({"a": "b", "c": "d"}, {"order": ["c"], "indent_text": " "})
+    out = data_to_json_pretty(
+        {"a": "b", "c": "d"}, {"order": ["c"], "indent_text": " "}
+    )
     assert out == '{\n "c": "d",\n "a": "b"\n}'
 
 
 def test_json_nested_hash():
-    out = data_to_json_pretty({"a": {"e": "f"}, "c": "d"}, {"order": ["c"], "indent_text": " "})
+    out = data_to_json_pretty(
+        {"a": {"e": "f"}, "c": "d"}, {"order": ["c"], "indent_text": " "}
+    )
     assert out == '{\n "c": "d",\n "a": {\n  "e": "f"\n }\n}'
 
 
 def test_json_array():
-    out = data_to_json_pretty({"a": ["e", "f"], "c": "d"}, {"order": ["c"], "indent_text": " "})
+    out = data_to_json_pretty(
+        {"a": ["e", "f"], "c": "d"}, {"order": ["c"], "indent_text": " "}
+    )
     assert out == '{\n "c": "d",\n "a": [\n  "e",\n  "f"\n ]\n}'

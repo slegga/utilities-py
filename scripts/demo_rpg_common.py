@@ -26,9 +26,30 @@ EVNER = [
 ]
 
 Klasser = [
-    {"navn": "Kriger", "styrke": 3, "sanse": 1, "kroppsbeherskelse": 2, "kjempe": 3, "mana": 0},
-    {"navn": "Trollmann", "styrke": 0, "sanse": 2, "kroppsbeherskelse": 1, "kjempe": 0, "mana": 3},
-    {"navn": "Tyv", "styrke": 1, "sanse": 3, "kroppsbeherskelse": 3, "kjempe": 1, "mana": 0},
+    {
+        "navn": "Kriger",
+        "styrke": 3,
+        "sanse": 1,
+        "kroppsbeherskelse": 2,
+        "kjempe": 3,
+        "mana": 0,
+    },
+    {
+        "navn": "Trollmann",
+        "styrke": 0,
+        "sanse": 2,
+        "kroppsbeherskelse": 1,
+        "kjempe": 0,
+        "mana": 3,
+    },
+    {
+        "navn": "Tyv",
+        "styrke": 1,
+        "sanse": 3,
+        "kroppsbeherskelse": 3,
+        "kjempe": 1,
+        "mana": 0,
+    },
 ]
 
 

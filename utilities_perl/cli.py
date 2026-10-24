@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import base64
 import os
+import pprint
+import re
 import shutil
 import stat
 import subprocess
@@ -26,7 +28,9 @@ from .transform import Transform
 
 def cmd_alert(argv: list[str] | None = None) -> int:
     """alert - pipe text into stdin to send a GroupMe message."""
-    parser = argparse.ArgumentParser(prog="alert", description="Notify with a GroupMe account bot.")
+    parser = argparse.ArgumentParser(
+        prog="alert", description="Notify with a GroupMe account bot."
+    )
     parser.add_argument(
         "--dryrun", action="store_true", help="Print to screen instead of doing changes"
     )
@@ -38,7 +42,6 @@ def cmd_alert(argv: list[str] | None = None) -> int:
         text += line
         if i >= 50:
             break
-    import re
 
     if not text or not re.search(r"\w", text):
         return 0
@@ -86,16 +89,19 @@ def cmd_transform(argv: list[str] | None = None) -> int:
 
 def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
     """dump-email-hash - dump the parsed structure of an email file."""
-    parser = argparse.ArgumentParser(prog="dump-email-hash", description="Dump email hash text")
+    parser = argparse.ArgumentParser(
+        prog="dump-email-hash", description="Dump email hash text"
+    )
     parser.add_argument("file", help="Email file to parse")
     args = parser.parse_args(argv)
 
     path = Path(args.file)
     if not path.is_file():
         raise SystemExit(f"Can't open file {args.file}, file does not exists")
-    import pprint
 
-    dump = EmailToHash().msgtext2hash(path.read_text(encoding="utf-8", errors="replace"))
+    dump = EmailToHash().msgtext2hash(
+        path.read_text(encoding="utf-8", errors="replace")
+    )
     pprint.pprint(dump)
     return 0
 
@@ -110,56 +116,71 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     homedir = args.homedir or os.environ.get("HOME", "")
-    cfg_file = os.path.join(homedir, "etc", "file-forwarder.cfg.yml")
-    done_file = os.path.join(homedir, "etc", "file-forwarder.done.yml")
+    cfg_file = Path(homedir) / "etc" / "file-forwarder.cfg.yml"
+    done_file = Path(homedir) / "etc" / "file-forwarder.done.yml"
 
-    Path(done_file).touch(exist_ok=True)
-    print("Read config file " + cfg_file)
-    with open(cfg_file, encoding="utf-8") as fh:
+    done_file.touch(exist_ok=True)
+    print(f"Read config file {cfg_file}")
+    with cfg_file.open(encoding="utf-8") as fh:
         config = yaml.safe_load(fh) or {}
-    with open(done_file, encoding="utf-8") as fh:
+    with done_file.open(encoding="utf-8") as fh:
         done = yaml.safe_load(fh) or {}
 
     for source_dir, destinations in config.items():
-        if not os.path.isdir(source_dir):
+        if not Path(source_dir).is_dir():
             raise SystemExit(f"Source directory: {source_dir} does not exists")
         for destination, dest_cfg in (destinations or {}).items():
-            if not os.path.isdir(destination):
-                if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
-                    raise SystemExit(f"Destination: {destination} is not a directory.")
-                subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
-                if not os.path.isdir(destination):
-                    raise SystemExit(
-                        f"Destination {destination} is not a directory or did not mount."
-                    )
+            _ensure_destination(destination, dest_cfg)
             all_files = [str(p)[len(source_dir) :] for p in Path(source_dir).rglob("*")]
             done_files = dict.fromkeys(done.get(source_dir) or [], 1)
             candidates = [f for f in all_files if done_files.get(f) != 1]
             for cpfile in candidates:
-                src = source_dir + cpfile
-                dst = destination + cpfile
-                if os.path.isdir(src):
-                    if not os.path.isdir(dst):
-                        os.mkdir(dst)
-                elif (
-                    os.path.exists(dst)
-                    and not os.access(dst, os.W_OK)
-                    and os.path.getsize(src) == os.path.getsize(dst)
-                ):
-                    print(f"{dst} exists. Do notthing")
-                else:
-                    print(f"copy({src}, {dst})")
-                    shutil.copy(src, dst)
-                    print(f"{cpfile} has been copied")
+                _forward_file(source_dir + cpfile, destination + cpfile, cpfile)
                 done.setdefault(source_dir, []).append(cpfile)
-                with open(done_file, "w", encoding="utf-8") as fh:
+                with done_file.open("w", encoding="utf-8") as fh:
                     yaml.safe_dump(done, fh, allow_unicode=True)
     print("Finished!")
     return 0
 
 
+def _ensure_destination(destination: str, dest_cfg: object) -> None:
+    """Mount destination if needed, or exit if it cannot be used as a directory."""
+    if Path(destination).is_dir():
+        return
+    if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
+        raise SystemExit(f"Destination: {destination} is not a directory.")
+    subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
+    if not Path(destination).is_dir():
+        raise SystemExit(
+            f"Destination {destination} is not a directory or did not mount."
+        )
+
+
+def _forward_file(src: str, dst: str, cpfile: str) -> None:
+    """Copy one source entry to the destination unless it is already there."""
+    if Path(src).is_dir():
+        if not Path(dst).is_dir():
+            Path(dst).mkdir()
+    elif (
+        Path(dst).exists()
+        and not os.access(dst, os.W_OK)
+        and Path(src).stat().st_size == Path(dst).stat().st_size
+    ):
+        print(f"{dst} exists. Do notthing")
+    else:
+        print(f"copy({src}, {dst})")
+        shutil.copy(src, dst)
+        print(f"{cpfile} has been copied")
+
+
+def _should_follow_link(link: str, tf: str, first: bool) -> bool:
+    """Vil symlink-målet bli fulgt? Tomt mål ignoreres; også målet "." følges."""
+    return link != "" and not first and link != tf
+
+
 def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
     """file-rights-debug - analyse why a file is not readable by a user."""
+    # Lazy med vilje: pwd/grp finnes bare på Unix.
     import grp
     import pwd
 
@@ -186,9 +207,10 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
                 user_rwx = (mode & stat.S_IRWXU) >> 6
                 group_rwx = (mode & stat.S_IRWXG) >> 3
                 other_rwx = mode & stat.S_IRWXO
-                if os.path.islink(tf):
+                if tf.is_symlink():
+                    # Rå målstreng: Path.readlink skiller ikke tomt mål fra ".".
                     link = os.readlink(tf)
-                    if link and not first and link != str(tf):
+                    if _should_follow_link(link, str(tf), first):
                         links.append(Path(link))
                         break
             first = False
@@ -208,7 +230,17 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
             tf = tf.parent
         print(
             print_hashes(
-                result, {"columns": ["name", "user", "group", "user_rwx", "group_rwx", "other_rwx"]}
+                result,
+                {
+                    "columns": [
+                        "name",
+                        "user",
+                        "group",
+                        "user_rwx",
+                        "group_rwx",
+                        "other_rwx",
+                    ]
+                },
             )
         )
     return 0
@@ -221,7 +253,7 @@ def cmd_unixtid(argv: list[str] | None = None) -> int:
         dt = datetime.fromtimestamp(int(argv[0]), tz=timezone.utc)
         print(dt.strftime("%Y-%m-%d %H:%M:%S"))
     else:
-        print(int(datetime.now().timestamp()))
+        print(int(datetime.now(tz=timezone.utc).timestamp()))
     return 0
 
 

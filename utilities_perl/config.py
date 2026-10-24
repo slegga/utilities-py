@@ -15,24 +15,28 @@ import yaml
 
 
 def _load_yaml(path: Path) -> Any:
-    with open(path, encoding="utf-8") as fh:
+    with path.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
 class GetCommonConfig:
     """Assemble per-app configuration from the common config directory."""
 
-    def __init__(self, config_dir: str | os.PathLike | None = None, debug: bool = False) -> None:
+    def __init__(
+        self, config_dir: str | os.PathLike | None = None, debug: bool = False
+    ) -> None:
         if config_dir is None:
             config_dir = (
                 os.environ["COMMON_CONFIG_DIR"]
                 if os.environ.get("COMMON_CONFIG_DIR")
-                else os.path.join(os.environ.get("HOME", ""), "etc")
+                else Path(os.environ.get("HOME", "")) / "etc"
             )
         self.config_dir = Path(config_dir)
         self.debug = debug
 
-    def get_mojoapp_config(self, filename: str, cfg: dict | None = None) -> dict[str, Any]:
+    def get_mojoapp_config(
+        self, filename: str, cfg: dict | None = None
+    ) -> dict[str, Any]:
         """Return the merged app config for the moniker derived from ``filename``."""
         cfg = cfg or {}
         moniker = Path(filename).name
@@ -45,7 +49,9 @@ class GetCommonConfig:
 
         raw = _load_yaml(file)
         if not isinstance(raw, dict):
-            raise ValueError(f"Empty config file in {file}")
+            # Innholdstype, ikke argumenttype: ValueError beholdes for
+            # oppførselkompatibilitet (se docs/ruff-kompleksitet.md).
+            raise ValueError(f"Empty config file in {file}")  # noqa: TRY004
         ret = dict(raw.get("common_config") or {})
         if "mojo_log_path" not in ret:
             raise ValueError(f"Missing mojo_log_path in common_config file {file}")
@@ -54,11 +60,14 @@ class GetCommonConfig:
             ret.update(raw["web_services"][moniker])
 
         ret["moniker"] = moniker
-        ret["mojo_log_path"] = str(Path(raw["common_config"]["mojo_log_path"]) / f"{moniker}.log")
-        secrets_dir = os.environ.get("COMMON_CONFIG_DIR") or os.path.join(
-            os.environ.get("HOME", ""), "etc"
+        ret["mojo_log_path"] = str(
+            Path(raw["common_config"]["mojo_log_path"]) / f"{moniker}.log"
         )
-        secrets_text = Path(secrets_dir, "secrets.txt").read_text(encoding="utf-8")
+        secrets_dir = Path(
+            os.environ.get("COMMON_CONFIG_DIR")
+            or Path(os.environ.get("HOME", "")) / "etc"
+        )
+        secrets_text = (secrets_dir / "secrets.txt").read_text(encoding="utf-8")
         ret["secrets"] = [s for s in secrets_text.split() if s]
         ret["hypnotoad"] = self._get_hypnotoad_config(moniker, cfg)
 
@@ -82,7 +91,9 @@ class GetCommonConfig:
                 else:
                     ret[key] = value
         else:
-            raise ValueError(f"Missing config in file {cfile}:  web_services:->{script}:")
+            raise ValueError(
+                f"Missing config in file {cfile}:  web_services:->{script}:"
+            )
         rundir = Path(os.environ.get("HOME", "")) / "run"
         rundir.mkdir(parents=True, exist_ok=True)
         ret["pid_file"] = str(rundir / f"{script}.pid")

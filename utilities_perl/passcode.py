@@ -11,15 +11,17 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 OKEYS = ("filepath", "password", "changed", "username", "url", "comment", "extra")
 
 
 def _password_dir() -> str:
-    return os.environ.get("PASSWORD_STORE_DIR") or os.path.join(
-        os.environ.get("HOME", ""), ".password-store"
-    )
+    env_dir = os.environ.get("PASSWORD_STORE_DIR")
+    if env_dir:
+        return env_dir
+    return str(Path(os.environ.get("HOME", "")) / ".password-store")
 
 
 class PassCode:
@@ -32,14 +34,18 @@ class PassCode:
         """Run an OS command, returning ``(stdout, stderr)``."""
         config = config or {}
         cmd = command if isinstance(command, (list, tuple)) else command.split(" ")
-        proc = subprocess.run(cmd, input=stdin, capture_output=True, text=True, check=False)
+        proc = subprocess.run(
+            cmd, input=stdin, capture_output=True, text=True, check=False
+        )
         stdout, stderr = proc.stdout, proc.stderr.rstrip("\n")
         if stderr:
             if "is not in the password store." in stderr:
                 stdout = None
             elif re.match(r"^gpg: (kryptert med|encrypted with)", stderr):
                 stderr = ""
-            elif re.search(r"bash: warning: setlocale", stderr) or config.get("continue_on_error"):
+            elif re.search(r"bash: warning: setlocale", stderr) or config.get(
+                "continue_on_error"
+            ):
                 pass
             else:
                 raise RuntimeError(f"OS command error: {' '.join(cmd)}\n{stderr}")
@@ -47,7 +53,9 @@ class PassCode:
 
     def get_files(self, regex: str | None = None) -> dict[str, str]:
         """Return ``{friendly_name: real_name}`` from the passcode index."""
-        out, _ = self.xsystem(["gpg", "--decrypt", self.password_dir + "/.passcode.gpg"])
+        out, _ = self.xsystem(
+            ["gpg", "--decrypt", self.password_dir + "/.passcode.gpg"]
+        )
         ret: dict[str, str] = {}
         for line in (out or "").split("\n"):
             if not line:

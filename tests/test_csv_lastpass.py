@@ -1,11 +1,9 @@
-import os
-
 from utilities_perl.csv_lastpass import CSVLastPass
 
 
 def test_read_testdata(data_dir):
     csv = CSVLastPass()
-    rows = csv.read(os.path.join(data_dir, "testdata.csv"), {"sep_char": ","})
+    rows = csv.read(data_dir / "testdata.csv", {"sep_char": ","})
     assert rows == [
         {
             "url": "https://10.0.0.23",
@@ -32,7 +30,7 @@ def test_read_testdata(data_dir):
 
 def test_read_lastpass(data_dir):
     csv = CSVLastPass()
-    rows = csv.read(os.path.join(data_dir, "lastpass.csv"), {"sep_char": ","})
+    rows = csv.read(data_dir / "lastpass.csv", {"sep_char": ","})
     assert len(rows) == 4
 
     assert rows[0]["extra"] == "Fluff text\nremember to keep a secret"

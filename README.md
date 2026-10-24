@@ -129,6 +129,92 @@ offset, text = gterning(1, 1, 3)
 uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
 ```
 
+## Delbar pre-commit-hook (ruff)
+
+Hooken gjør linting til en del av `git commit` i stedet for noe som først skjer
+i review, og i stedet for en egen lint-test i pytest (menneskevedtak i sak #7).
+Filen er portabel og kopieres uendret mellom Python-repoer. Kilde er dette
+repoet (`utilities-py`).
+
+### Dette kopieres
+
+| Fil | Legges i | Merknad |
+| --- | --- | --- |
+| `hooks/pre-commit` | målrepoets `hooks/` | Kopieres **uendret**, uten repo-spesifikke tilpassinger |
+
+### Slik tas filen i bruk
+
+1. Kopier `hooks/pre-commit` til `hooks/pre-commit` i målrepoet og gjør den
+   kjørbar: `chmod +x hooks/pre-commit`.
+2. Aktiver hooken, for eksempel med `git config core.hooksPath hooks`.
+   Alternativt kopieres filen til `.git/hooks/pre-commit`. Merk at
+   `core.hooksPath` peker git bort fra `.git/hooks`, så eventuelle andre
+   hooks der må flyttes med.
+3. Legg `ruff` inn som dev-avhengighet, for eksempel `uv add --dev ruff`
+   eller `uv add --optional dev ruff`. Uten dev-avhengighet brukes
+   `uvx ruff` som fallback, og krever da `uvx` på `PATH`.
+4. Ved neste commit kjøres sjekkene automatisk. Committen blokkeres ved
+   avvik, med tydelig melding om hva som må fikses.
+
+### Hva hooken sjekker
+
+- `ruff check .` med ruff sitt standard regelsett (default)
+- `ruff format --check .` for formatering
+
+Feiler en av sjekkene, forteller feilmeldingen hva som må fikses:
+`ruff check --fix` retter lint-varsel, `ruff format` retter formateringen.
+Kjør deretter sjekken på nytt for å bekrefte at alt er rettet, og committen
+på nytt.
+
+Røyktester for hooken ligger i kilde-repoet (`tests/test_precommit_hook.py`)
+og verifiserer blant annet at hooken feiler med tydelig melding på villet
+lint- og formatfeil, blokkerer `git commit`, og håndterer manglende
+ruff/uvx-fallback.
+
+### Ruff-konfigurasjon
+
+Hooken krever ingen medfølgende konfigurasjon: ruff kjører med default
+(standard) oppsett, både regelsett og formatering (menneskevedtak i sak #7:
+«Bruk standard» og «forsøk med default»). Egen `ruff.toml` eller
+`[tool.ruff]`-blokk i målrepoet styrer i så fall nivået der, men standarden
+er å ikke ha egen konfigurasjon.
+
+### `# noqa` for regler utenfor standardregelsettet
+
+Prinsippet er å **fjerne døde `# noqa`-er**, ikke å videreføre dem: merknader
+som undertrykker regler standardregelsettet ikke håndhever (E501, PTH-, S-,
+ARG-, PLC0415-regler og lignende) fjernes — både i dette repoet og i
+målrepoer når gammel lint-konfigurasjon ryddes bort (se under). E501 (for
+lange linjer) er en slik regel: den håndheves uansett ikke, og
+`ruff format` bryter linjer der det trengs. Begrunnelsene bak slike døde
+undertrykkelser beholdes som vanlige kommentarer eller docstring-notater, som
+for `ARG001` i `rpg_common/template.py`.
+
+`# noqa` som låser oppførsel som standardregelsettet ellers ville krevd
+endret, beholdes med begrunnelse på samme linje. Det er den motsatte
+kategorien av døde `# noqa`-er: regelen håndheves faktisk av
+standardregelsettet, og oppførselen er tilsiktet. I dette repoet gjelder det
+`# noqa: TRY004` (to steder) og `# noqa: BLE001` — TRY004 og BLE001 ligger i
+ruff sitt default-regelsett (utvidet fra 59 til 413 regler i ruff 0.16), så
+`ruff check .` feiler uten dem.
+
+### Eksisterende lint-konfigurasjon i målrepoet
+
+Meld fra om hva som fantes av lint-konfigurasjon i målrepoet før den
+fjernes — for eksempel en `[tool.ruff]`-blokk i `pyproject.toml`, en eldre
+`ruff.toml` eller et annet lint-oppsett. Notér funnet der det passer
+(commit-melding, issue eller notat).
+
+Deretter fjernes den gamle konfigurasjonen slik at default gjelder
+(avklaring 8: meld fra og overskriv gammel konfig). Fjern for eksempel
+`[tool.ruff]`-blokka i `pyproject.toml` og eventuell `ruff.toml`, slik at
+det ikke ligger to konfigurasjoner som kjemper om hvilken som gjelder.
+
+### Vedlikehold
+
+Vedlikeholdet av hooken har agenten ansvar for. Mennesket justerer evt. hvor
+aktivt den skal brukes (menneskevedtak i sak #7, svar 5).
+
 ## Design conventions
 
 Carried over from `utilities-perl/AGENTS.md`:
