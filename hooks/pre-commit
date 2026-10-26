@@ -1,0 +1,95 @@
+#!/bin/sh
+# Delbar git pre-commit-hook som kjører `ruff check` og `ruff format --check`
+# før hver commit, slik at linting skjer lokalt og automatisk — i stedet for
+# som en egen lint-test i pytest eller først i review.
+#
+# Kopier filen uendret inn i et hvilket som helst Python-repo, gjør den
+# kjørbar og aktiver den, for eksempel:
+#
+#     chmod +x hooks/pre-commit
+#     git config core.hooksPath hooks
+#
+# Alternativt kopieres filen til `.git/hooks/pre-commit`. Filen er
+# konfigurasjonsløs: ingen repo-spesifikke navn eller stier, bare forutsetning
+# om at den ligger i et git-repo og at ruff er tilgjengelig.
+#
+# Krever `ruff` — som dev-avhengighet i prosjektet, eller `uvx` på PATH som
+# fallback. Ruff kjører med default oppsett (standard regelsett og
+# formatering). Egen ruff-konfigurasjon i målrepoet styrer i så fall nivået.
+#
+# Vedlikehold: ansvar agent. Mennesket justerer evt. hvor aktivt den skal
+# brukes.
+
+set -u
+
+INSTALL_RUFF="Legg ruff til som dev-avhengighet, for eksempel \`uv add --dev ruff\` eller \`uv add --optional dev ruff\`."
+
+# Finn ruff: installert ruff først, deretter `uvx ruff` som fallback.
+if command -v ruff >/dev/null 2>&1; then
+    set -- ruff
+elif command -v uvx >/dev/null 2>&1; then
+    set -- uvx ruff
+else
+    echo "ruff er ikke installert." >&2
+    echo "" >&2
+    echo "$INSTALL_RUFF" >&2
+    echo "Uten dev-avhengighet kreves \`uvx\` på PATH som fallback." >&2
+    exit 1
+fi
+
+# Gjenkjenn «verktøyet mangler» fra uv/uvx og operativsystemet. Bare linjer
+# som starter med en feil-markør vurderes, slik at mønstre som dukker opp som
+# tekst i kodeutdrag ikke utløser. Det skiller «ruff er ikke installert» fra
+# ruff sine egne IO-feil, for eksempel
+# `error: Failed to read 'modul.py': No such file or directory`.
+is_missing_tool_error() {
+    printf '%s\n' "$1" | grep -qiE \
+        "^(error: |[[:space:]]*[×╰└]).*(no solution found when resolving tool dependencies|was not found in the package registry|failed to (fetch|download))|^error: (no such file or directory|command not found)( \(os error [0-9]+\))?$"
+}
+
+missing_tool_message() {
+    echo "ruff er ikke installert." >&2
+    echo "" >&2
+    echo "$INSTALL_RUFF" >&2
+    echo "" >&2
+    echo "$1" >&2
+}
+
+check_output=$("$@" check . 2>&1)
+check_status=$?
+if [ "$check_status" -ne 0 ]; then
+    if is_missing_tool_error "$check_output"; then
+        missing_tool_message "$check_output"
+    else
+        echo "ruff check . feilet." >&2
+        echo "" >&2
+        echo "Fiks varslene som er listet opp nedenfor, for eksempel med \`ruff check --fix\`," >&2
+        echo "og kjør \`ruff check .\` for å bekrefte at alt er rettet." >&2
+        echo "" >&2
+        echo "Arbeidskatalog: $(pwd)" >&2
+        echo "" >&2
+        echo "$check_output" >&2
+    fi
+    exit 1
+fi
+
+format_output=$("$@" format --check . 2>&1)
+format_status=$?
+if [ "$format_status" -ne 0 ]; then
+    if is_missing_tool_error "$format_output"; then
+        missing_tool_message "$format_output"
+    else
+        echo "ruff format --check . feilet." >&2
+        echo "" >&2
+        echo "Koden er ikke formatert med ruff. Kjør \`ruff format\` for å rette" >&2
+        echo "formateringen automatisk, deretter \`ruff format --check .\` for å" >&2
+        echo "bekrefte at alt er rettet." >&2
+        echo "" >&2
+        echo "Arbeidskatalog: $(pwd)" >&2
+        echo "" >&2
+        echo "$format_output" >&2
+    fi
+    exit 1
+fi
+
+exit 0

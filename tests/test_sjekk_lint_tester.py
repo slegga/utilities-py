@@ -6,14 +6,15 @@ og rapporten.
 
 Røyktestene kjører hele skriptet mot syntetiske repo-trær i midlertidige
 kataloger (ikke mot de ekte repoene). De bruker den delte fiksturen
-``royktre`` (repo-rot med referanser på plass og repoliste), og hver røyktest
-går via ``RoykTre.kjor``, som i tillegg kontrollerer at skriptet ikke endrer
-noen filer i repo-treet.
+``royktre`` (repo-rot med referanser på plass), og hver røyktest går via
+``RoykTre.kjor``, som i tillegg kontrollerer at skriptet ikke endrer noen
+filer i repo-treet (avklaring 5).
 """
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import shlex
 import subprocess
 import sys
@@ -23,6 +24,11 @@ from pathlib import Path
 import pytest
 
 SKRIPTSTI = Path(__file__).resolve().parent.parent / "scripts" / "sjekk-lint-tester.py"
+
+REFERANSE_HOOK = (
+    "#!/bin/sh\n# delbar pre-commit-hook\nruff check .\nruff format --check .\n"
+)
+REFERANSE_RS = "REFERANSE-RS\n"
 
 
 def last_skript() -> object:
@@ -39,6 +45,29 @@ def skript() -> object:
     return last_skript()
 
 
+@pytest.fixture(autouse=True)
+def isolert_git_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hold tester isolert fra global og system git-konfigurasjon.
+
+    ``core.hooksPath`` leses av git på alle nivåer (spec-review punkt 4) —
+    uten isolasjon ville tester som krever «ingen hooksPath» feilet på
+    maskiner med global hooksPath i dotfiles.
+    """
+    tom = tmp_path / "tom.gitconfig"
+    tom.write_text("", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tom))
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(tom))
+
+
+def sett_global_hooks_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hooks_path: str
+) -> None:
+    """Sett core.hooksPath i den isolerte globale git-konfigurasjonen."""
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_text(f"[core]\n\thooksPath = {hooks_path}\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
+
 def skriv(sti: Path, tekst: str) -> Path:
     """Skriv en fil, og lag katalogene som trengs."""
     sti.parent.mkdir(parents=True, exist_ok=True)
@@ -46,19 +75,49 @@ def skriv(sti: Path, tekst: str) -> Path:
     return sti
 
 
+def skriv_hook(sti: Path, tekst: str = REFERANSE_HOOK) -> Path:
+    """Skriv en pre-commit-hook som er kjørbar (git hopper over ukjørbare hooks)."""
+    skriv(sti, tekst)
+    sti.chmod(0o755)
+    return sti
+
+
+def lag_git_repo(repo: Path, hooks_path: str | None = "hooks") -> Path:
+    """Lag et tomt git-repo, eventuelt med core.hooksPath satt.
+
+    Ekte ``git init`` brukes slik at fiks-kommandoene med ``git config`` kan
+    kjøres mot fiksturen, på samme måte som mot de ekte repoene.
+    """
+    repo.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    if hooks_path is not None:
+        subprocess.run(
+            ["git", "-C", str(repo), "config", "core.hooksPath", hooks_path],
+            check=True,
+        )
+    else:
+        subprocess.run(
+            ["git", "-C", str(repo), "config", "--unset", "core.hooksPath"],
+            check=False,
+        )
+    return repo
+
+
 def lag_referanser(rot: Path) -> None:
-    """Lag referanse-repoene med standard lint-testfiler og ruff.toml."""
-    skriv(rot / "utilities-py" / "tests" / "test_lint.py", "REFERANSE-PY\n")
-    skriv(rot / "utilities-py" / "ruff.toml", "REFERANSE-RUFF\n")
-    skriv(rot / "personlig-py" / "tests" / "lint.rs", "REFERANSE-RS\n")
+    """Lag referanse-repoene: pre-commit-hooken (sak #2) og lint.rs (sak #8)."""
+    skriv_hook(rot / "utilities-py" / "hooks" / "pre-commit", REFERANSE_HOOK)
+    skriv(rot / "personlig-py" / "tests" / "lint.rs", REFERANSE_RS)
 
 
-def lag_python_repo(rot: Path, navn: str) -> Path:
-    """Lag et Python-repo som er i tråd med standarden."""
+def lag_python_repo(
+    rot: Path, navn: str, hook: bool = True, hooks_path: str | None = "hooks"
+) -> Path:
+    """Lag et Python-repo som er i tråd med standarden (pre-commit-hook på plass)."""
     repo = rot / navn
     skriv(repo / "modul.py", "x = 1\n")
-    skriv(repo / "tests" / "test_lint.py", "REFERANSE-PY\n")
-    skriv(repo / "ruff.toml", "REFERANSE-RUFF\n")
+    lag_git_repo(repo, hooks_path=hooks_path)
+    if hook:
+        skriv_hook(repo / "hooks" / "pre-commit", REFERANSE_HOOK)
     return repo
 
 
@@ -67,20 +126,32 @@ def lag_rust_repo(rot: Path, navn: str) -> Path:
     repo = rot / navn
     skriv(repo / "Cargo.toml", '[package]\nname = "x"\nversion = "0.1.0"\n')
     skriv(repo / "src" / "lib.rs", "pub fn x() {}\n")
-    skriv(repo / "tests" / "lint.rs", "REFERANSE-RS\n")
+    skriv(repo / "tests" / "lint.rs", REFERANSE_RS)
     return repo
 
 
 def lag_begge_repo(rot: Path, navn: str) -> Path:
-    """Lag et repo med både Python- og Rust-kode, begge lint-testene på plass."""
+    """Lag et repo med både Python- og Rust-kode, med hook og lint-test på plass."""
     repo = lag_python_repo(rot, navn)
     skriv(repo / "Cargo.toml", '[package]\nname = "x"\nversion = "0.1.0"\n')
     skriv(repo / "src" / "lib.rs", "pub fn x() {}\n")
-    skriv(repo / "tests" / "lint.rs", "REFERANSE-RS\n")
+    skriv(repo / "tests" / "lint.rs", REFERANSE_RS)
     return repo
 
 
-def kjor_hoved(skript: object, monkeypatch: pytest.MonkeyPatch, *argumenter: str) -> int:
+def sammendrag(ok: int = 0, mangler: int = 0, avvik: int = 0, intet: int = 0) -> str:
+    """Forventet sammendragslinje for røyktestene.
+
+    Referanse-repoene i fiksturen oppdages også og teller med:
+    ``personlig-py`` (Rust-referansen) gir 1 OK, og ``utilities-py`` (bare
+    hook-referansen, ingen kode) gir 1 «intet å gjøre».
+    """
+    return f"Sammendrag: {ok + 1} OK, {mangler} mangler, {avvik} avvik, {intet + 1} intet å gjøre"
+
+
+def kjor_hoved(
+    skript: object, monkeypatch: pytest.MonkeyPatch, *argumenter: str
+) -> int:
     """Kjør hoved() med gitte argumenter og returner exit-koden."""
     monkeypatch.setattr(sys, "argv", ["sjekk-lint-tester.py", *argumenter])
     return skript.hoved()
@@ -117,51 +188,35 @@ def fiks_kommandoer_fra(ut: str) -> list[str]:
 def kjor_fiks_kommandoer(kommandoer: list[str]) -> None:
     """Kjør fiks-kommandoene slik en bruker ville gjort, og krev at de lykkes."""
     for kommando in kommandoer:
-        resultat = subprocess.run(kommando, shell=True, capture_output=True, text=True, check=False)
+        resultat = subprocess.run(
+            kommando, shell=True, capture_output=True, text=True, check=False
+        )
         assert resultat.returncode == 0, (
             f"fiks-kommandoen feilet ({resultat.returncode}): {kommando}\n{resultat.stderr}"
         )
 
 
-def sjekk_at_ruff_er_standard(repo: Path, referanse: Path) -> None:
-    """Slutt-konfigurasjonen for ruff skal være standarden, uten overstyringer."""
-    assert (repo / "ruff.toml").read_bytes() == referanse.read_bytes()
-    assert not (repo / ".ruff.toml").exists()
-    assert "[tool.ruff" not in (repo / "pyproject.toml").read_text(encoding="utf-8")
-
-
 @dataclass
 class RoykTre:
-    """Syntetisk repo-tre for røyktestene, med referanser på plass og repoliste."""
+    """Syntetisk repo-tre for røyktestene, med referanser på plass."""
 
     rot: Path
-    liste: Path
     skript: object
     capsys: pytest.CaptureFixture
     monkeypatch: pytest.MonkeyPatch
 
-    def sett_repoer(self, *navn: str) -> None:
-        """Skriv repo-navnene inn i repolista."""
-        skriv(self.liste, "".join(f"{repo}\n" for repo in navn))
-
-    def kjor(self, *navn: str) -> tuple[int, str]:
-        """Skriv repolista, kjør hele skriptet mot treet, og kontroller at treet er uendret.
+    def kjor(self) -> tuple[int, str]:
+        """Kjør hele skriptet mot treet, og kontroller at treet er uendret.
 
         Skriptet skal bare lese repoene og skrive ut rapporter og fiks-kommandoer
         (avklaring 5) — innholdet i alle filene i repo-treet sammenlignes derfor
         før og etter kjøringen. Returner exit-kode og utskrift slik at testen kan
-        sjekke status, fiks-kommandoer og sammendrag.
+        sjekke status, fiks-kommandoer og sammendrag. Repoene er alle
+        underkataloger under rot (menneskevedtak i utilities-py#11) — det finnes
+        ingen repoliste.
         """
-        self.sett_repoer(*navn)
         foer = les_tre(self.rot)
-        kode = kjor_hoved(
-            self.skript,
-            self.monkeypatch,
-            "--repo-rot",
-            str(self.rot),
-            "--repo-liste",
-            str(self.liste),
-        )
+        kode = kjor_hoved(self.skript, self.monkeypatch, "--repo-rot", str(self.rot))
         ut = self.capsys.readouterr().out
         assert les_tre(self.rot) == foer, "skriptet endret filer i repo-treet"
         return kode, ut
@@ -174,139 +229,395 @@ def royktre(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture,
 ) -> RoykTre:
-    """Delt fikstur for røyktestene: repo-rot med referanser på plass og repoliste."""
+    """Delt fikstur for røyktestene: repo-rot med referanser på plass."""
+    rot = tmp_path / "repoer"
+    rot.mkdir()
+    lag_referanser(rot)
+    return RoykTre(rot=rot, skript=skript, capsys=capsys, monkeypatch=monkeypatch)
+
+
+# --- repo-oppdagelse (ett nivå av kataloger under meta-privat) ---
+
+
+def test_finn_reponavn_tar_bare_underkataloger(skript: object, tmp_path: Path) -> None:
+    """Filer, skjulte kataloger og byggeartefakter skal ikke rapporteres som repoer."""
+    skriv(tmp_path / "README.md", "x\n")
+    (tmp_path / "repo-a").mkdir()
+    (tmp_path / ".skjult").mkdir()
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / ".venv").mkdir()
+    assert skript.finn_reponavn(tmp_path) == ["repo-a"]
+
+
+def test_repoer_er_underkataloger_uten_repoliste(
+    skript: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """Uten argumenter brukes alle underkataloger under repo-rota — ingen repo-liste."""
     rot = tmp_path / "repoer"
     lag_referanser(rot)
-    return RoykTre(
-        rot=rot,
-        liste=skriv(tmp_path / "repos.txt", ""),
-        skript=skript,
-        capsys=capsys,
-        monkeypatch=monkeypatch,
+    lag_python_repo(rot, "b-repo")
+    lag_python_repo(rot, "a-repo")
+    kode = kjor_hoved(skript, monkeypatch, "--repo-rot", str(rot))
+    ut = capsys.readouterr().out
+    assert kode == 0
+    assert "Repoliste: alle underkataloger ett nivå under repo-rota" in ut
+    assert ut.index("a-repo:") < ut.index("b-repo:")
+
+
+# --- pre-commit-hook for Python ---
+
+
+def test_precommit_mangler_gir_mangler_og_installeringskommando(
+    skript: object, tmp_path: Path
+) -> None:
+    """Uten pre-commit-hook skal statusen være mangler, med kopiering og aktivering."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.status == skript.STATUS_MANGLER
+    assert "Pre-commit-hooken mangler" in resultat.funn[0].tekst
+    assert any(
+        "cp " in kommando and "pre-commit" in kommando
+        for kommando in resultat.funn[0].fiks
+    )
+    assert any(
+        "git " in kommando and "core.hooksPath" in kommando
+        for kommando in resultat.funn[0].fiks
     )
 
 
-# --- pytest-oppsett (python_files/testpaths) ---
-
-
-@pytest.mark.parametrize(
-    ("filnavn", "innhold"),
-    [
-        ("pytest.ini", "[pytest]\ntestpaths = tests\n"),
-        ("tox.ini", "[pytest]\ntestpaths = tests\n"),
-        ("setup.cfg", "[tool:pytest]\ntestpaths = tests\n"),
-    ],
-)
-def test_uten_python_files_gir_ikke_falskt_avvik(
-    skript: object, tmp_path: Path, filnavn: str, innhold: str
-) -> None:
-    """pytest.ini/tox.ini/setup.cfg uten python_files skal bruke standardmønstrene."""
-    repo = tmp_path / "repo"
-    skriv(repo / filnavn, innhold)
-    testfil = skriv(repo / "tests" / "test_lint.py", "x\n")
-    oppsett = skript.les_pytest_oppsett(repo)
-    assert oppsett.python_files == skript.STANDARD_PYTHON_FILES
-    assert skript.sjekk_pytest_oppdagelse(repo, testfil) is None
-
-
-def test_tom_python_files_i_pyproject_gir_ikke_falskt_avvik(skript: object, tmp_path: Path) -> None:
-    """Tom python_files-liste i pyproject.toml skal også falle tilbake på standarden."""
-    repo = tmp_path / "repo"
-    skriv(repo / "pyproject.toml", "[tool.pytest.ini_options]\npython_files = []\n")
-    testfil = skriv(repo / "tests" / "test_lint.py", "x\n")
-    assert skript.sjekk_pytest_oppdagelse(repo, testfil) is None
-
-
-def test_testpaths_med_prikkeslash_normaliseres(skript: object, tmp_path: Path) -> None:
-    """ "./tests" i testpaths skal matche katalogen tests."""
-    repo = tmp_path / "repo"
-    skriv(repo / "pytest.ini", "[pytest]\ntestpaths = ./tests\n")
-    testfil = skriv(repo / "tests" / "test_lint.py", "x\n")
-    assert skript.sjekk_pytest_oppdagelse(repo, testfil) is None
-
-
-def test_python_files_som_ikke_matcher_gir_avvik(skript: object, tmp_path: Path) -> None:
-    """python_files som ikke matcher test_lint.py skal gi avvik, ikke stillhet."""
-    repo = tmp_path / "repo"
-    skriv(repo / "pytest.ini", "[pytest]\npython_files = *_test.py\n")
-    testfil = skriv(repo / "tests" / "test_lint.py", "x\n")
-    avvik = skript.sjekk_pytest_oppdagelse(repo, testfil)
-    assert avvik is not None
-    assert "python_files" in avvik
-
-
-def test_testpaths_som_ikke_dekker_tests_gir_avvik(skript: object, tmp_path: Path) -> None:
-    """testpaths som ikke dekker tests/ skal gi avvik, ikke stillhet."""
-    repo = tmp_path / "repo"
-    skriv(repo / "pytest.ini", "[pytest]\ntestpaths = integration\n")
-    testfil = skriv(repo / "tests" / "test_lint.py", "x\n")
-    avvik = skript.sjekk_pytest_oppdagelse(repo, testfil)
-    assert avvik is not None
-    assert "testpaths" in avvik
-
-
-# --- ruff-konfigurasjon ---
-
-
-def test_ruff_toml_med_prikk_rapporteres_med_innhold_og_fiks(
+def test_uten_git_repo_gir_mangler_uten_fiks_kommandoer(
     skript: object, tmp_path: Path
 ) -> None:
-    """.ruff.toml overstyrer ruff.toml og skal rapporteres som avvik."""
+    """Katalog som ikke ligger i noe git-repo kan ikke ha pre-commit-hook — ingen farlige fiks."""
     repo = tmp_path / "repo"
-    referanse = skriv(tmp_path / "referanse.toml", "standard\n")
-    skriv(repo / "ruff.toml", "standard\n")
-    skriv(repo / ".ruff.toml", "avvikende\n")
-    funn = skript.sjekk_python_konfig(repo, referanse)
-    assert len(funn) == 1
-    assert funn[0].status == skript.STATUS_AVVIK
-    assert ".ruff.toml" in funn[0].tekst
-    assert "avvikende" in funn[0].tekst
-    assert any(kommando.startswith("rm ") and ".ruff.toml" in kommando for kommando in funn[0].fiks)
+    skriv(repo / "modul.py", "x = 1\n")
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), skript.Referanser(), resultat)
+    assert resultat.status == skript.STATUS_MANGLER
+    assert "ikke i noe git-repo" in resultat.funn[0].tekst
+    assert resultat.funn[0].fiks == []
 
 
-# --- innholdet i lint-testene ---
+def test_precommit_ikke_aktivert_gir_avvik(skript: object, tmp_path: Path) -> None:
+    """Hook-fil som ligger i hooks/ uten å være aktivert gir avvik, ikke stillhet."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False, hooks_path=None)
+    skriv_hook(repo / "hooks" / "pre-commit", REFERANSE_HOOK)
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.status == skript.STATUS_AVVIK
+    assert "er ikke aktivert" in resultat.funn[0].tekst
+    assert any("core.hooksPath" in kommando for kommando in resultat.funn[0].fiks)
 
 
-def test_avvikende_innhold_i_python_lint_testen_rapporteres(skript: object, tmp_path: Path) -> None:
-    """En utradert kopi av test_lint.py skal rapporteres med overskriv-kommando."""
-    repo = tmp_path / "repo"
-    referanse = skriv(tmp_path / "test_lint.py", "REFERANSE\n")
-    skriv(repo / "tests" / "test_lint.py", "print('hallo')\n")
-    refs = skript.Referanser(python_test=referanse)
-    resultat = skript.Reposultat(navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON)
-    skript.sjekk_python(repo, refs, resultat)
+def test_global_core_hooks_path_med_hook_gir_ikke_funn(
+    skript: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Globalt aktivert core.hooksPath (f.eks. fra dotfiles) skal telle som aktivert.
+
+    Spec-review punkt 4: git kjører hooken fra global sti også for dette
+    repoet — rapporten må ikke si «mangler»/«ikke aktivert» da.
+    """
+    repo = lag_python_repo(tmp_path, "repo", hook=False, hooks_path=None)
+    global_hooks = tmp_path / "dotfiles" / "hooks"
+    skriv_hook(global_hooks / "pre-commit", REFERANSE_HOOK)
+    sett_global_hooks_path(tmp_path, monkeypatch, str(global_hooks))
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.funn == []
+    assert skript.finn_aktiv_hook(repo) == global_hooks / "pre-commit"
+
+
+def test_global_core_hooks_path_uten_hook_gir_fortsatt_ikke_aktivert(
+    skript: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Når global core.hooksPath peker utenfor repoet, kjører git ikke hooks/pre-commit der."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False, hooks_path=None)
+    skriv_hook(repo / "hooks" / "pre-commit", REFERANSE_HOOK)
+    tom_hooks = tmp_path / "dotfiles" / "hooks"
+    tom_hooks.mkdir(parents=True)
+    sett_global_hooks_path(tmp_path, monkeypatch, str(tom_hooks))
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert any("er ikke aktivert" in f.tekst for f in resultat.funn)
+    assert skript.finn_aktiv_hook(repo) is None
+
+
+def test_precommit_ikke_aktivert_uten_ruff_rapporterer_innhold_og_overskriving(
+    skript: object, tmp_path: Path
+) -> None:
+    """Innholdet i en inaktiv hook vurderes mot referansen — ikke bare aktiveres.
+
+    Verifisert med en markdownlint-hook, slik ``dokumentasjon`` har i dag:
+    hooken kjører ikke Python-linting, og skal overskrives med referansekopien
+    (avklaring 4), ikke aktiveres som den er.
+    """
+    repo = lag_python_repo(tmp_path, "repo", hook=False, hooks_path=None)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nmarkdownlint\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.status == skript.STATUS_AVVIK
+    assert any("er ikke aktivert" in f.tekst for f in resultat.funn)
+    assert any("kjører ikke ruff" in f.tekst for f in resultat.funn)
+    assert any("Dagens innhold" in f.tekst for f in resultat.funn)
+    assert any("markdownlint" in f.tekst for f in resultat.funn)
+    assert any("cp " in kommando for f in resultat.funn for kommando in f.fiks)
+
+
+def test_precommit_ikke_aktivert_med_utradert_innhold_rapporterer_overskriving(
+    skript: object, tmp_path: Path
+) -> None:
+    """En inaktiv, utradert hook skal også vurderes mot referansen (avklaring 4)."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False, hooks_path=None)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nruff check .\n# endret\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.status == skript.STATUS_AVVIK
+    assert any("er ikke aktivert" in f.tekst for f in resultat.funn)
+    assert any("avviker fra referansen" in f.tekst for f in resultat.funn)
+    assert any("cp " in kommando for f in resultat.funn for kommando in f.fiks)
+
+
+def test_precommit_ikke_kjoerbar_gir_avvik(skript: object, tmp_path: Path) -> None:
+    """En hook uten execute-bit blir hoppet over av git, og skal rapporteres."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    skriv(repo / "hooks" / "pre-commit", REFERANSE_HOOK)
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    avvik = [f for f in resultat.funn if f.status == skript.STATUS_AVVIK]
+    assert any("er ikke kjørbar" in f.tekst for f in avvik)
+    assert any(kommando.startswith("chmod +x") for kommando in avvik[0].fiks)
+
+
+def test_precommit_uten_ruff_gir_avvik(skript: object, tmp_path: Path) -> None:
+    """En aktiv hook som ikke kjører ruff dekker ikke Python-lintingen."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nmarkdownlint\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    assert resultat.status == skript.STATUS_AVVIK
+    assert any("kjører ikke ruff" in f.tekst for f in resultat.funn)
+    assert any("cp " in kommando for f in resultat.funn for kommando in f.fiks)
+
+
+def test_precommit_avvikende_innhold_gir_avvik_og_kopieringskommando(
+    skript: object, tmp_path: Path
+) -> None:
+    """En utradert kopi av hooken skal rapporteres med overskriv-kommando (avklaring 4)."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nruff check .\n# endret\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
     avvik = [f for f in resultat.funn if f.status == skript.STATUS_AVVIK]
     assert len(avvik) == 1
-    assert "avviker fra" in avvik[0].tekst
-    assert any("cp " in kommando and "test_lint.py" in kommando for kommando in avvik[0].fiks)
+    assert "avviker fra referansen" in avvik[0].tekst
+    assert "Dagens innhold" in avvik[0].tekst
+    assert any(
+        "cp " in kommando and "pre-commit" in kommando for kommando in avvik[0].fiks
+    )
 
 
-def test_avvikende_innhold_i_rust_lint_testen_rapporteres(skript: object, tmp_path: Path) -> None:
-    """En utradert kopi av lint.rs skal rapporteres med overskriv-kommando."""
-    repo = tmp_path / "repo"
-    referanse = skriv(tmp_path / "lint.rs", "REFERANSE\n")
-    skriv(repo / "tests" / "lint.rs", "fn main() {}\n")
-    refs = skript.Referanser(rust_test=referanse)
-    resultat = skript.Reposultat(navn="repo", sti=repo, klassifisering=skript.KLASSE_RUST)
-    skript.sjekk_rust(repo, refs, resultat)
-    avvik = [f for f in resultat.funn if f.status == skript.STATUS_AVVIK]
-    assert len(avvik) == 1
-    assert "avviker fra" in avvik[0].tekst
-    assert any("cp " in kommando and "lint.rs" in kommando for kommando in avvik[0].fiks)
-
-
-def test_uendret_lint_test_rapporteres_som_ok(skript: object, tmp_path: Path) -> None:
-    """En uendret kopi av referansefilen skal ikke gi avvik."""
-    repo = tmp_path / "repo"
-    referanse = skriv(tmp_path / "test_lint.py", "REFERANSE\n")
-    skriv(repo / "tests" / "test_lint.py", "REFERANSE\n")
-    refs = skript.Referanser(python_test=referanse)
-    resultat = skript.Reposultat(navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON)
-    skript.sjekk_python(repo, refs, resultat)
+def test_precommit_paa_plass_gir_ikke_funn(skript: object, tmp_path: Path) -> None:
+    """Aktiv hook som er referansefilen kopiert uendret skal ikke gi funn."""
+    repo = lag_python_repo(tmp_path, "repo")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
     assert resultat.funn == []
 
 
-# --- Cargo [lints] og autotests ---
+def test_gammel_lint_test_gir_avvik_og_rm(skript: object, tmp_path: Path) -> None:
+    """tests/test_lint.py er gammel leveranseform — linting skal ikke skje i pytest."""
+    repo = lag_python_repo(tmp_path, "repo")
+    skriv(repo / "tests" / "test_lint.py", "print('lint')\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    avvik = [f for f in resultat.funn if f.status == skript.STATUS_AVVIK]
+    assert any("gammel leveranseform" in f.tekst for f in avvik)
+    assert any(
+        kommando.startswith("rm ") and "test_lint.py" in kommando
+        for f in avvik
+        for kommando in f.fiks
+    )
+
+
+# --- ruff-konfigurasjon og E501-unntaket ---
+
+
+def test_ruff_oppsett_med_kun_e501_unntak_gir_ikke_avvik(
+    skript: object, tmp_path: Path
+) -> None:
+    """Standarden er ruff default, med E501-unntaket som eneste tillatte innstilling."""
+    repo = tmp_path / "repo"
+    skriv(repo / "pyproject.toml", '[tool.ruff.lint]\nignore = ["E501"]\n')
+    assert skript.sjekk_python_konfig(repo) == []
+    skriv(repo / "ruff.toml", '[lint]\nignore = ["E501"]\n')
+    (repo / "pyproject.toml").unlink()
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_tool_ruff_med_e501_unntak_bevarer_unntaket_ved_fiks(
+    skript: object, tmp_path: Path
+) -> None:
+    """«Ignore E501 skal videre føres overalt»: fiks-kommandoen bevarer E501-unntaket."""
+    repo = tmp_path / "repo"
+    skriv(
+        repo / "pyproject.toml",
+        "[tool.ruff]\nline-length = 79\n\n"
+        '[tool.ruff.lint]\nselect = ["E", "F"]\nignore = ["E501"]\n',
+    )
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    assert funn[0].status == skript.STATUS_AVVIK
+    assert any(kommando.startswith("python3 ") for kommando in funn[0].fiks)
+    kjor_fiks_kommandoer(funn[0].fiks)
+    tekst = (repo / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'ignore = ["E501"]' in tekst
+    assert "line-length" not in tekst
+    assert "select" not in tekst
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_tool_ruff_uten_e501_unntak_fjernes_ved_fiks(
+    skript: object, tmp_path: Path
+) -> None:
+    """Uten E501-unntak fjernes [tool.ruff] helt — ruff default gjelder."""
+    repo = tmp_path / "repo"
+    skriv(
+        repo / "pyproject.toml",
+        "[tool.ruff]\nline-length = 100\n\n[tool.ruff.format]\nx = 1\n",
+    )
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    kjor_fiks_kommandoer(funn[0].fiks)
+    tekst = (repo / "pyproject.toml").read_text(encoding="utf-8")
+    assert "[tool.ruff" not in tekst
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_ruff_toml_fjernes_ved_fiks_uten_unntak(skript: object, tmp_path: Path) -> None:
+    """Gammel ruff.toml uten E501-unntak fjernes, slik at default gjelder."""
+    repo = tmp_path / "repo"
+    skriv(repo / "ruff.toml", 'line-length = 100\n[lint]\nselect = ["E", "F"]\n')
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    assert "ruff.toml avviker" in funn[0].tekst
+    kjor_fiks_kommandoer(funn[0].fiks)
+    assert not (repo / "ruff.toml").exists()
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_ruff_toml_med_e501_unntak_skrives_om_ikke_fjernes(
+    skript: object, tmp_path: Path
+) -> None:
+    """E501-unntaket i ruff.toml bevares — filen skrives om til kun unntaket."""
+    repo = tmp_path / "repo"
+    skriv(
+        repo / "ruff.toml",
+        'line-length = 100\n[lint]\nignore = ["E501"]\nselect = ["E"]\n',
+    )
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    kjor_fiks_kommandoer(funn[0].fiks)
+    assert (repo / "ruff.toml").read_text(
+        encoding="utf-8"
+    ) == '[lint]\nignore = ["E501"]\n'
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_ruff_toml_og_tool_ruff_samtidig_gir_avvik(
+    skript: object, tmp_path: Path
+) -> None:
+    """To ruff-konfigurasjoner kjemper om hvilken som gjelder — fiks fjerner den ene."""
+    repo = tmp_path / "repo"
+    ruff_toml = skriv(repo / "ruff.toml", '[lint]\nignore = ["E501"]\n')
+    skriv(repo / "pyproject.toml", '[tool.ruff.lint]\nignore = ["E501"]\n')
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    assert "kjemper om hvilken som gjelder" in funn[0].tekst
+    assert "Behold ruff.toml" in funn[0].tekst, (
+        "rapporten skal navngi kilden som beholdes, ikke bare si «Behold én»"
+    )
+    assert funn[0].fiks, (
+        "avviket må ha fiks-kommandoer som fjerner den overskytende kilden"
+    )
+    assert any("pyproject.toml" in kommando for kommando in funn[0].fiks)
+    kjor_fiks_kommandoer(funn[0].fiks)
+    assert ruff_toml.exists()
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+def test_flere_ruff_konfigurasjoner_med_avvik_fikses_helt(
+    skript: object, tmp_path: Path
+) -> None:
+    """Når én av to konkurrerende konfigurasjoner fikses, må den andre fjernes også.
+
+    Ellers ville avviket «Flere ruff-konfigurasjoner» stått igjen ved neste
+    kjøring (spesifikasjonens pkt. 4: fiks-kommandoene skal fikse avviket).
+    """
+    repo = tmp_path / "repo"
+    skriv(
+        repo / "ruff.toml",
+        'line-length = 100\n[lint]\nselect = ["E"]\nignore = ["E501"]\n',
+    )
+    skriv(repo / "pyproject.toml", "[tool.ruff]\nline-length = 79\n")
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    assert "kjemper om hvilken som gjelder" in funn[0].tekst
+    assert len(funn[0].fiks) == 2
+    kjor_fiks_kommandoer(funn[0].fiks)
+    assert skript.sjekk_python_konfig(repo) == []
+
+
+# --- Cargo [lints], autotests og Rust ---
 
 
 def test_lints_seksjoner_rapporteres_med_fullt_innhold(skript: object) -> None:
@@ -332,10 +643,14 @@ def test_lints_seksjoner_rapporteres_med_fullt_innhold(skript: object) -> None:
     assert "[workspace]" not in innhold
 
 
-def test_lints_seksjon_rapporteres_i_rust_konfig(skript: object, tmp_path: Path) -> None:
+def test_lints_seksjon_rapporteres_i_rust_konfig(
+    skript: object, tmp_path: Path
+) -> None:
     """Dagens innhold for Cargo [lints] skal ta med innstillingene i seksjonen."""
     repo = tmp_path / "repo"
-    skriv(repo / "Cargo.toml", '[package]\nname = "x"\n\n[lints.clippy]\nall = "warn"\n')
+    skriv(
+        repo / "Cargo.toml", '[package]\nname = "x"\n\n[lints.clippy]\nall = "warn"\n'
+    )
     funn = skript.sjekk_rust_konfig(repo)
     assert len(funn) == 1
     assert "[lints.clippy]" in funn[0].tekst
@@ -366,60 +681,42 @@ def test_autotests_false_med_eksplisitt_testmal_gir_ikke_avvik(
     assert skript.sjekk_cargo_oppdagelse(repo, testfil) is None
 
 
-# --- repoliste og ikke-klonede repoer ---
-
-
-def test_finn_reponavn_ignorerer_vanlige_filer(skript: object, tmp_path: Path) -> None:
-    """Filer i repo-rota skal ikke rapporteres som repoer."""
-    skriv(tmp_path / "README.md", "x\n")
-    skriv(tmp_path / "config.yaml", "x\n")
-    (tmp_path / "repo-a").mkdir()
-    (tmp_path / ".skjult").mkdir()
-    plassering = skript.Plassering(repo_rot=tmp_path)
-    assert skript.finn_reponavn(plassering) == ["repo-a"]
-
-
-def test_ikke_klonet_repo_gir_egen_status_og_exit_0(
-    skript: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+def test_avvikende_innhold_i_rust_lint_testen_rapporteres(
+    skript: object, tmp_path: Path
 ) -> None:
-    """Repoer som ikke er klonet skal ikke dra exit-koden til 1."""
-    rot = tmp_path / "repoer"
-    lag_referanser(rot)
-    lag_python_repo(rot, "python-repo")
-    skriv(tmp_path / "README.md", "løs fil\n")
-    liste = skriv(tmp_path / "repos.txt", "python-repo\nmangler-repo\n")
-    kode = kjor_hoved(
-        skript,
-        monkeypatch,
-        "--repo-rot",
-        str(rot),
-        "--repo-liste",
-        str(liste),
+    """En utradert kopi av lint.rs skal rapporteres med overskriv-kommando."""
+    repo = tmp_path / "repo"
+    referanse = skriv(tmp_path / "lint.rs", "REFERANSE\n")
+    skriv(repo / "tests" / "lint.rs", "fn main() {}\n")
+    refs = skript.Referanser(rust_test=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_RUST
     )
-    ut = capsys.readouterr().out
-    assert kode == 0
-    assert "python-repo: OK (Python)" in ut
-    assert "mangler-repo: ikke klonet (ikke klonet lokalt)" in ut
-    assert "1 ikke klonet" in ut
+    skript.sjekk_rust(repo, refs, resultat)
+    avvik = [f for f in resultat.funn if f.status == skript.STATUS_AVVIK]
+    assert len(avvik) == 1
+    assert "avviker fra" in avvik[0].tekst
+    assert any(
+        "cp " in kommando and "lint.rs" in kommando for kommando in avvik[0].fiks
+    )
+
+
+# --- referanser og exit-koder ---
 
 
 def test_avvik_gir_exit_1_og_fiks_kommandoer(
-    skript: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    skript: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
 ) -> None:
     """Avvik skal gi exit-kode 1 og konkrete fiks-kommandoer i rapporten."""
     rot = tmp_path / "repoer"
+    rot.mkdir()
     lag_referanser(rot)
-    repo = lag_python_repo(rot, "python-repo")
-    skriv(repo / "tests" / "test_lint.py", "print('hallo')\n")
-    liste = skriv(tmp_path / "repos.txt", "python-repo\n")
-    kode = kjor_hoved(
-        skript,
-        monkeypatch,
-        "--repo-rot",
-        str(rot),
-        "--repo-liste",
-        str(liste),
-    )
+    repo = lag_python_repo(rot, "python-repo", hook=False)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nruff check .\n# endret\n")
+    kode = kjor_hoved(skript, monkeypatch, "--repo-rot", str(rot))
     ut = capsys.readouterr().out
     assert kode == 1
     assert "python-repo: avvik (Python)" in ut
@@ -429,25 +726,65 @@ def test_avvik_gir_exit_1_og_fiks_kommandoer(
 
 
 def test_manglende_referansefiler_gir_exit_2(
-    skript: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    skript: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
 ) -> None:
-    """Uten referansefilene skal skriptet advare og avslutte med exit-kode 2."""
+    """Uten referansefilene, og uten reelle avvik, blir det exit-kode 2."""
     rot = tmp_path / "repoer"
     lag_python_repo(rot, "python-repo")
-    liste = skriv(tmp_path / "repos.txt", "python-repo\n")
-    kode = kjor_hoved(
-        skript,
-        monkeypatch,
-        "--repo-rot",
-        str(rot),
-        "--repo-liste",
-        str(liste),
-    )
+    kode = kjor_hoved(skript, monkeypatch, "--repo-rot", str(rot))
     ut = capsys.readouterr().out
     assert kode == 2
     assert "ADVARSEL" in ut
     assert "python-repo: OK (Python)" in ut
     assert "Ikke kontrollert:" in ut
+
+
+def test_reelle_avvik_vinner_over_manglende_referanse(
+    skript: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """Reelle avvik gir exit 1 selv når referansefilene mangler.
+
+    Exit-kode 2 skal ikke maskere avvik som faktisk er funnet (avklart
+    2026-10-24: exit 1 vinner over exit 2).
+    """
+    rot = tmp_path / "repoer"
+    lag_python_repo(rot, "python-repo", hook=False)
+    kode = kjor_hoved(skript, monkeypatch, "--repo-rot", str(rot))
+    ut = capsys.readouterr().out
+    assert kode == 1
+    assert "ADVARSEL" in ut
+    assert "python-repo: mangler (Python)" in ut
+    assert "1 mangler" in ut
+
+
+def test_json_rapport_er_maskinlesbar(
+    skript: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """--json gir rapporten som ett maskinlesbart JSON-dokument for kontroller."""
+    rot = tmp_path / "repoer"
+    rot.mkdir()
+    lag_referanser(rot)
+    lag_python_repo(rot, "python-repo", hook=False)
+    kode = kjor_hoved(skript, monkeypatch, "--repo-rot", str(rot), "--json")
+    data = json.loads(capsys.readouterr().out)
+    assert kode == 1
+    assert data["exit_kode"] == 1
+    assert data["sammendrag"] == {"OK": 1, "mangler": 1, "avvik": 0, "intet å gjøre": 1}
+    assert data["referanser"]["mangler"] == []
+    assert data["repo_rot"] == str(rot)
+    python = next(repo for repo in data["repoer"] if repo["navn"] == "python-repo")
+    assert python["status"] == "mangler"
+    assert python["klassifisering"] == "python"
+    assert any("cp " in k for funn in python["funn"] for k in funn["fiks"])
 
 
 # --- Røyktester: hele skriptet mot syntetiske repo-trær ---
@@ -456,175 +793,97 @@ def test_manglende_referansefiler_gir_exit_2(
 def test_royktest_repo_uten_kode_gir_intet_a_gjore(royktre: RoykTre) -> None:
     """Et repo uten kode skal rapporteres som «intet å gjøre» og gi exit 0."""
     skriv(royktre.rot / "tomt-repo" / "README.md", "# bare dokumentasjon\n")
-    kode, ut = royktre.kjor("tomt-repo")
+    kode, ut = royktre.kjor()
     assert kode == 0
     assert "tomt-repo: intet å gjøre (ingen kode)" in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 0 avvik, 1 intet å gjøre, 0 ikke klonet" in ut
+    assert sammendrag(ok=0, intet=1) in ut
 
 
 def test_royktest_python_repo_i_orden_gir_ok_og_exit_0(royktre: RoykTre) -> None:
-    """Python-repo med lint-test, standard ruff-konfig og lokal testkjøring gir OK og exit 0.
-
-    Pytest-oppsettet i fikstur-repoet er eksplisitt (``pytest.ini`` med
-    ``testpaths = tests`` og ``python_files = test_*.py``) og inkluderer
-    ``tests/test_lint.py``: den tredje betingelsen — at lint-testen inngår i
-    den lokale testkjøringen — skal være demonstrert, ikke bare underforstått
-    gjennom pytest sine standardmønstre.
-    """
-    repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "pytest.ini", "[pytest]\ntestpaths = tests\npython_files = test_*.py\n")
-    kode, ut = royktre.kjor("python-repo")
+    """Python-repo med aktiv pre-commit-hook som er referansekopien gir OK og exit 0."""
+    lag_python_repo(royktre.rot, "python-repo")
+    kode, ut = royktre.kjor()
     assert kode == 0
     assert "python-repo: OK (Python)" in ut
-    assert "Sammendrag: 1 OK, 0 mangler, 0 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert sammendrag(ok=1) in ut
 
 
-def test_royktest_python_repo_uten_lint_test_gir_mangler_og_kopieringskommando(
+def test_royktest_python_repo_uten_hook_gir_mangler_og_installeringskommando(
     royktre: RoykTre,
 ) -> None:
-    """Python-repo uten tests/test_lint.py gir status mangler og kopieringskommando."""
-    repo = lag_python_repo(royktre.rot, "python-repo")
-    (repo / "tests" / "test_lint.py").unlink()
-    kode, ut = royktre.kjor("python-repo")
+    """Python-repo uten pre-commit-hook gir status mangler og kommando som installerer hooken."""
+    repo = lag_python_repo(royktre.rot, "python-repo", hook=False)
+    kode, ut = royktre.kjor()
     assert kode != 0
     assert "python-repo: mangler (Python)" in ut
-    assert "tests/test_lint.py finnes ikke" in ut
+    assert "Pre-commit-hooken mangler" in ut
     assert "Fiks-kommandoer:" in ut
-    assert "cp " in ut
-    assert str(royktre.rot / "utilities-py" / "tests" / "test_lint.py") in ut
-    assert str(repo / "tests" / "test_lint.py") in ut
-    assert "Sammendrag: 0 OK, 1 mangler, 0 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    kilde = royktre.rot / "utilities-py" / "hooks" / "pre-commit"
+    maal = repo / "hooks" / "pre-commit"
+    assert f"cp {shlex.quote(str(kilde))} {shlex.quote(str(maal))}" in ut
+    assert "core.hooksPath hooks" in ut
+    assert sammendrag(mangler=1) in ut
+    kjor_fiks_kommandoer(fiks_kommandoer_fra(ut))
+    assert maal.read_text(encoding="utf-8") == REFERANSE_HOOK
 
 
-def test_royktest_avvikende_ruff_toml_gir_avvik_med_dagens_innhold_og_fiks(
-    royktre: RoykTre,
-) -> None:
-    """Avvikende ruff.toml gir status avvik, dagens innhold og overskriv-kommando med standarden."""
+def test_royktest_gammel_lint_test_gir_avvik_og_fjernes(royktre: RoykTre) -> None:
+    """Gammel lint-test i pytest rapporteres som avvik, og fiks fjerner den."""
     repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "ruff.toml", "line-length = 120\n")
-    kode, ut = royktre.kjor("python-repo")
-    assert kode != 0
+    gammel = skriv(repo / "tests" / "test_lint.py", "print('lint')\n")
+    kode, ut = royktre.kjor()
+    assert kode == 1
     assert "python-repo: avvik (Python)" in ut
-    assert "Dagens innhold" in ut
-    assert "line-length = 120" in ut
-    assert "Fiks-kommandoer:" in ut
-    assert "cp " in ut
-    assert str(royktre.rot / "utilities-py" / "ruff.toml") in ut
-    assert str(repo / "ruff.toml") in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 1 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert "gammel leveranseform" in ut
+    assert sammendrag(avvik=1) in ut
+    kjor_fiks_kommandoer(fiks_kommandoer_fra(ut))
+    assert not gammel.exists()
 
 
-def test_royktest_tool_ruff_i_pyproject_gir_avvik_med_dagens_innhold_og_fiks(
+def test_royktest_tool_ruff_med_e501_unntak_gir_avvik_og_fiks_bevarer_unntaket(
     royktre: RoykTre,
 ) -> None:
-    """[tool.ruff] i pyproject.toml gir status avvik, dagens innhold og strip-kommando.
-
-    Fiks-kommandoen er strip-kommandoen som fjerner [tool.ruff]-seksjonene fra
-    pyproject.toml (ikke en vilkårlig python3-kommando). Siden ruff.toml
-    allerede er standarden i fiksturen, er slutt-konfigurasjonen standarden —
-    det verifiseres ved å kjøre fiks-kommandoene og sammenligne med
-    referansen i utilities-py.
-    """
+    """[tool.ruff] rapporteres med dagens innhold, og fiks bevarer E501-unntaket."""
     repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "pyproject.toml", "[tool.ruff]\nline-length = 120\n")
-    kode, ut = royktre.kjor("python-repo")
-    assert kode != 0
+    skriv(
+        repo / "pyproject.toml",
+        '[tool.ruff]\nline-length = 79\n\n[tool.ruff.lint]\nignore = ["E501"]\n',
+    )
+    kode, ut = royktre.kjor()
+    assert kode == 1
     assert "python-repo: avvik (Python)" in ut
     assert "Dagens innhold" in ut
     assert "[tool.ruff]" in ut
+    assert "line-length = 79" in ut
+    assert sammendrag(avvik=1) in ut
+    kjor_fiks_kommandoer(fiks_kommandoer_fra(ut))
+    tekst = (repo / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'ignore = ["E501"]' in tekst
+    assert "line-length" not in tekst
+    assert "select" not in tekst
+
+
+def test_royktest_avvikende_ruff_toml_gir_avvik_og_fjernes(royktre: RoykTre) -> None:
+    """Avvikende ruff.toml gir status avvik, dagens innhold og fiks som fjerner filen."""
+    repo = lag_python_repo(royktre.rot, "python-repo")
+    ruff_toml = skriv(repo / "ruff.toml", "line-length = 120\n")
+    kode, ut = royktre.kjor()
+    assert kode == 1
+    assert "python-repo: avvik (Python)" in ut
+    assert "Dagens innhold" in ut
     assert "line-length = 120" in ut
-    assert "Fiks-kommandoer:" in ut
-    assert 'python3 -c "import re,sys,pathlib;' in ut
-    assert str(repo / "pyproject.toml") in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 1 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert sammendrag(avvik=1) in ut
     kjor_fiks_kommandoer(fiks_kommandoer_fra(ut))
-    sjekk_at_ruff_er_standard(repo, royktre.rot / "utilities-py" / "ruff.toml")
-
-
-def test_royktest_tool_ruff_i_pyproject_uten_standard_ruff_toml_skriver_cp_og_strip(
-    royktre: RoykTre,
-) -> None:
-    """[tool.ruff] uten standard ruff.toml gir både cp av standarden og strip av seksjonen.
-
-    Kravet «skriver ut kommandoer som overskriver den med standarden» dekkes
-    eksplisitt: kopieringen av ruff.toml fra utilities-py (overskriv med
-    standarden) er med i fiks-kommandoene i tillegg til strip av [tool.ruff],
-    og slutt-konfigurasjonen etter fiks-kommandoene er standarden.
-    """
-    repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "ruff.toml", "line-length = 88\n")
-    skriv(repo / "pyproject.toml", "[tool.ruff]\nline-length = 120\n")
-    kode, ut = royktre.kjor("python-repo")
-    assert kode != 0
-    assert "python-repo: avvik (Python)" in ut
-    assert "ruff.toml avviker fra standarden" in ut
-    assert "[tool.ruff]" in ut
-    kilde = royktre.rot / "utilities-py" / "ruff.toml"
-    maal = repo / "ruff.toml"
-    assert f"cp {shlex.quote(str(kilde))} {shlex.quote(str(maal))}" in ut
-    assert 'python3 -c "import re,sys,pathlib;' in ut
-    assert str(repo / "pyproject.toml") in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 1 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
-    kjor_fiks_kommandoer(fiks_kommandoer_fra(ut))
-    sjekk_at_ruff_er_standard(repo, kilde)
-
-
-def test_royktest_testpaths_ikke_samlet_inn_av_pytest_gir_avvik_og_fiks(royktre: RoykTre) -> None:
-    """testpaths som ikke dekker tests/ gir status avvik og en fiks som flytter testen.
-
-    Målstien til kopieringen er den første testpath-katalogen — her
-    ``integration/test_lint.py`` — altså en testfil som pytest faktisk ville
-    samlet inn med dette oppsettet, og den gamle plasseringen fjernes med
-    ``rm``.
-    """
-    repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "pytest.ini", "[pytest]\ntestpaths = integration\n")
-    kode, ut = royktre.kjor("python-repo")
-    assert kode != 0
-    assert "python-repo: avvik (Python)" in ut
-    assert "inngår ikke i den lokale testkjøringen" in ut
-    assert "testpaths" in ut
-    assert "Fiks-kommandoer:" in ut
-    kilde = royktre.rot / "utilities-py" / "tests" / "test_lint.py"
-    maal = repo / "integration" / "test_lint.py"
-    gammel = repo / "tests" / "test_lint.py"
-    assert f"cp {shlex.quote(str(kilde))} {shlex.quote(str(maal))}" in ut
-    assert f"rm {shlex.quote(str(gammel))}" in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 1 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
-
-
-def test_royktest_python_files_ikke_samlet_inn_av_pytest_gir_avvik_og_fiks(
-    royktre: RoykTre,
-) -> None:
-    """python_files som ikke matcher test_lint.py gir status avvik og fiks-kommandoer.
-
-    Målstien til kopieringen er ``tests/test_lint.py`` — samme sti som allerede
-    finnes, og som ``python_files = *_test.py`` ikke matcher: en no-op som ikke
-    løser oppdagelsesavviket. Hva skriptet skal foreslå for dette avviket —
-    endring av pytest-oppsettet, eller et mål/filnavn som ``python_files``
-    faktisk matcher — er løftet til mennesket og avventer svar.
-    """
-    repo = lag_python_repo(royktre.rot, "python-repo")
-    skriv(repo / "pytest.ini", "[pytest]\npython_files = *_test.py\n")
-    kode, ut = royktre.kjor("python-repo")
-    assert kode != 0
-    assert "python-repo: avvik (Python)" in ut
-    assert "inngår ikke i den lokale testkjøringen" in ut
-    assert "python_files" in ut
-    assert "Fiks-kommandoer:" in ut
-    kilde = royktre.rot / "utilities-py" / "tests" / "test_lint.py"
-    maal = repo / "tests" / "test_lint.py"
-    assert f"cp {shlex.quote(str(kilde))} {shlex.quote(str(maal))}" in ut
-    assert "Sammendrag: 0 OK, 0 mangler, 1 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert not ruff_toml.exists()
 
 
 def test_royktest_rust_repo_i_orden_gir_ok_og_exit_0(royktre: RoykTre) -> None:
     """Rust-repo med tests/lint.rs og standard konfigurasjon gir status OK og exit 0."""
     lag_rust_repo(royktre.rot, "rust-repo")
-    kode, ut = royktre.kjor("rust-repo")
+    kode, ut = royktre.kjor()
     assert kode == 0
     assert "rust-repo: OK (Rust)" in ut
-    assert "Sammendrag: 1 OK, 0 mangler, 0 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert sammendrag(ok=1) in ut
 
 
 def test_royktest_rust_repo_uten_lint_test_gir_mangler_og_kopieringskommando(
@@ -633,29 +892,32 @@ def test_royktest_rust_repo_uten_lint_test_gir_mangler_og_kopieringskommando(
     """Rust-repo uten tests/lint.rs gir status mangler og kopieringskommando."""
     repo = lag_rust_repo(royktre.rot, "rust-repo")
     (repo / "tests" / "lint.rs").unlink()
-    kode, ut = royktre.kjor("rust-repo")
+    kode, ut = royktre.kjor()
     assert kode != 0
     assert "rust-repo: mangler (Rust)" in ut
     assert "tests/lint.rs finnes ikke" in ut
     assert "Fiks-kommandoer:" in ut
-    assert "cp " in ut
-    assert str(royktre.rot / "personlig-py" / "tests" / "lint.rs") in ut
-    assert str(repo / "tests" / "lint.rs") in ut
-    assert "Sammendrag: 0 OK, 1 mangler, 0 avvik, 0 intet å gjøre, 0 ikke klonet" in ut
+    assert (
+        f"cp {shlex.quote(str(royktre.rot / 'personlig-py' / 'tests' / 'lint.rs'))}"
+        in ut
+    )
+    assert sammendrag(mangler=1) in ut
 
 
-def test_royktest_repo_med_python_og_rust_sjekkes_for_begge_deler(royktre: RoykTre) -> None:
-    """Repo med både Python og Rust skal sjekkes for begge lint-testene."""
+def test_royktest_repo_med_python_og_rust_sjekkes_for_begge_deler(
+    royktre: RoykTre,
+) -> None:
+    """Repo med både Python og Rust skal sjekkes for både hook og lint-test."""
     repo = lag_begge_repo(royktre.rot, "begge-repo")
-    (repo / "tests" / "test_lint.py").unlink()
+    (repo / "hooks" / "pre-commit").unlink()
     (repo / "tests" / "lint.rs").unlink()
-    kode, ut = royktre.kjor("begge-repo")
+    kode, ut = royktre.kjor()
     assert kode != 0
     assert "begge-repo: mangler (Python og Rust)" in ut
-    assert "tests/test_lint.py finnes ikke" in ut
+    assert "Pre-commit-hooken mangler" in ut
     assert "tests/lint.rs finnes ikke" in ut
-    assert str(royktre.rot / "utilities-py" / "tests" / "test_lint.py") in ut
-    assert str(royktre.rot / "personlig-py" / "tests" / "lint.rs") in ut
+    assert "pre-commit" in ut
+    assert "lint.rs" in ut
 
 
 def test_royktest_alle_repoer_i_orden_gir_exit_0(royktre: RoykTre) -> None:
@@ -664,16 +926,18 @@ def test_royktest_alle_repoer_i_orden_gir_exit_0(royktre: RoykTre) -> None:
     lag_rust_repo(royktre.rot, "rust-repo")
     lag_begge_repo(royktre.rot, "begge-repo")
     skriv(royktre.rot / "tomt-repo" / "README.md", "# bare dokumentasjon\n")
-    kode, ut = royktre.kjor("python-repo", "rust-repo", "begge-repo", "tomt-repo")
+    kode, ut = royktre.kjor()
     assert kode == 0
     assert "python-repo: OK (Python)" in ut
     assert "rust-repo: OK (Rust)" in ut
     assert "begge-repo: OK (Python og Rust)" in ut
     assert "tomt-repo: intet å gjøre (ingen kode)" in ut
-    assert "Sammendrag: 3 OK, 0 mangler, 0 avvik, 1 intet å gjøre, 0 ikke klonet" in ut
+    assert sammendrag(ok=3, intet=1) in ut
 
 
-def test_royktest_blandet_tre_gir_riktig_sammendrag_og_uendret_innhold(royktre: RoykTre) -> None:
+def test_royktest_blandet_tre_gir_riktig_sammendrag_og_uendret_innhold(
+    royktre: RoykTre,
+) -> None:
     """Blandet tre med alle statusene: sammendraget skal stemme og ingen filer endres.
 
     ``RoykTre.kjor`` sammenligner innholdet i alle filene i repo-treet før og
@@ -681,23 +945,17 @@ def test_royktest_blandet_tre_gir_riktig_sammendrag_og_uendret_innhold(royktre: 
     fiks-kommandoer (avklaring 5).
     """
     lag_python_repo(royktre.rot, "python-ok")
-    python_mangler = lag_python_repo(royktre.rot, "python-mangler")
-    (python_mangler / "tests" / "test_lint.py").unlink()
+    lag_python_repo(royktre.rot, "python-mangler", hook=False)
     python_avvik = lag_python_repo(royktre.rot, "python-avvik")
-    skriv(python_avvik / "pyproject.toml", "[tool.ruff]\nline-length = 120\n")
+    skriv(
+        python_avvik / "pyproject.toml",
+        '[tool.ruff]\nline-length = 79\n\n[tool.ruff.lint]\nignore = ["E501"]\n',
+    )
     lag_rust_repo(royktre.rot, "rust-ok")
     rust_mangler = lag_rust_repo(royktre.rot, "rust-mangler")
     (rust_mangler / "tests" / "lint.rs").unlink()
     skriv(royktre.rot / "tomt-repo" / "README.md", "# bare dokumentasjon\n")
-    kode, ut = royktre.kjor(
-        "python-ok",
-        "python-mangler",
-        "python-avvik",
-        "rust-ok",
-        "rust-mangler",
-        "tomt-repo",
-        "ikke-klonet",
-    )
+    kode, ut = royktre.kjor()
     assert kode != 0
     assert "python-ok: OK (Python)" in ut
     assert "rust-ok: OK (Rust)" in ut
@@ -705,16 +963,20 @@ def test_royktest_blandet_tre_gir_riktig_sammendrag_og_uendret_innhold(royktre: 
     assert "rust-mangler: mangler (Rust)" in ut
     assert "python-avvik: avvik (Python)" in ut
     assert "tomt-repo: intet å gjøre (ingen kode)" in ut
-    assert "ikke-klonet: ikke klonet (ikke klonet lokalt)" in ut
     assert "Fiks-kommandoer:" in ut
-    assert "Sammendrag: 2 OK, 2 mangler, 1 avvik, 1 intet å gjøre, 1 ikke klonet" in ut
+    assert sammendrag(ok=2, mangler=2, avvik=1, intet=1) in ut
 
 
-# --- avklarte valg i docstringen ---
+# --- docstringen og de avklarte valgene ---
 
 
 def test_docstringen_har_avklarte_valg_ikke_apne_valg(skript: object) -> None:
-    """Valgene skal være avklarte beslutninger i teksten, ikke åpne punkter."""
+    """Valgene skal være avklarte vedtak, med grunnlag i menneskevedtakene."""
     assert skript.__doc__ is not None
     assert "Avklarte valg" in skript.__doc__
+    assert "Avklart ved ferdigstillelsen av sak #3" in skript.__doc__
     assert "skal avklares med mennesket" not in skript.__doc__
+    assert "utilities-py#11" in skript.__doc__
+    assert "utilities-py#7" in skript.__doc__
+    assert "Reelle avvik vinner over exit-kode 2" in skript.__doc__
+    assert "--json" in skript.__doc__

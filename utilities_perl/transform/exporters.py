@@ -53,14 +53,25 @@ class PassCodeExporter(Exporter):
     def export(self, args: dict, data: Any) -> None:
         formatted: list[dict[str, Any]] = []
         if data and data[0].get("name"):
-            accepted = {"grouping", "name", "password", "username", "url", "totp", "fav", "extra"}
+            accepted = {
+                "grouping",
+                "name",
+                "password",
+                "username",
+                "url",
+                "totp",
+                "fav",
+                "extra",
+            }
             for row in data:
                 for key in row:
                     if key not in accepted:
                         raise ValueError(f"Unknown key: {key} in Last Pass format")
                 nr: dict[str, Any] = {}
                 nr["filepath"] = (
-                    f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
+                    f"{row['grouping']}/{row['name']}"
+                    if row.get("grouping")
+                    else row["name"]
                 )
                 for key in ("password", "username", "url"):
                     nr[key] = row.get(key)
@@ -106,7 +117,9 @@ class PassCodeExporter(Exporter):
                         continue
                     raise ValueError("No filename")
                 nr = {
-                    "filepath": (row.get("GRUPPERING") or row.get("DOMENE")) + "/" + filename,
+                    "filepath": (row.get("GRUPPERING") or row.get("DOMENE"))
+                    + "/"
+                    + filename,
                     "password": row.get("PASSORD"),
                     "username": row.get("BRUKER"),
                     "url": row.get("URL"),

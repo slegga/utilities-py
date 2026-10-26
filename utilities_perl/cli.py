@@ -26,7 +26,9 @@ from .transform import Transform
 
 def cmd_alert(argv: list[str] | None = None) -> int:
     """alert - pipe text into stdin to send a GroupMe message."""
-    parser = argparse.ArgumentParser(prog="alert", description="Notify with a GroupMe account bot.")
+    parser = argparse.ArgumentParser(
+        prog="alert", description="Notify with a GroupMe account bot."
+    )
     parser.add_argument(
         "--dryrun", action="store_true", help="Print to screen instead of doing changes"
     )
@@ -86,7 +88,9 @@ def cmd_transform(argv: list[str] | None = None) -> int:
 
 def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
     """dump-email-hash - dump the parsed structure of an email file."""
-    parser = argparse.ArgumentParser(prog="dump-email-hash", description="Dump email hash text")
+    parser = argparse.ArgumentParser(
+        prog="dump-email-hash", description="Dump email hash text"
+    )
     parser.add_argument("file", help="Email file to parse")
     args = parser.parse_args(argv)
 
@@ -95,7 +99,9 @@ def cmd_dump_email_hash(argv: list[str] | None = None) -> int:
         raise SystemExit(f"Can't open file {args.file}, file does not exists")
     import pprint
 
-    dump = EmailToHash().msgtext2hash(path.read_text(encoding="utf-8", errors="replace"))
+    dump = EmailToHash().msgtext2hash(
+        path.read_text(encoding="utf-8", errors="replace")
+    )
     pprint.pprint(dump)
     return 0
 
@@ -127,7 +133,9 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
             if not os.path.isdir(destination):
                 if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
                     raise SystemExit(f"Destination: {destination} is not a directory.")
-                subprocess.run(dest_cfg["mount_cmd"].split(), capture_output=True, check=False)
+                subprocess.run(
+                    dest_cfg["mount_cmd"].split(), capture_output=True, check=False
+                )
                 if not os.path.isdir(destination):
                     raise SystemExit(
                         f"Destination {destination} is not a directory or did not mount."
@@ -208,7 +216,17 @@ def cmd_file_rights_debug(argv: list[str] | None = None) -> int:
             tf = tf.parent
         print(
             print_hashes(
-                result, {"columns": ["name", "user", "group", "user_rwx", "group_rwx", "other_rwx"]}
+                result,
+                {
+                    "columns": [
+                        "name",
+                        "user",
+                        "group",
+                        "user_rwx",
+                        "group_rwx",
+                        "other_rwx",
+                    ]
+                },
             )
         )
     return 0
@@ -221,7 +239,7 @@ def cmd_unixtid(argv: list[str] | None = None) -> int:
         dt = datetime.fromtimestamp(int(argv[0]), tz=timezone.utc)
         print(dt.strftime("%Y-%m-%d %H:%M:%S"))
     else:
-        print(int(datetime.now().timestamp()))
+        print(int(datetime.now(timezone.utc).timestamp()))
     return 0
 
 

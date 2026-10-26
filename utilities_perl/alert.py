@@ -29,7 +29,9 @@ class Alert:
         url: str = DEFAULT_URL,
     ) -> None:
         if configfile is None:
-            base = os.environ.get("CONFIG_DIR") or os.path.join(os.environ.get("HOME", ""), "etc")
+            base = os.environ.get("CONFIG_DIR") or os.path.join(
+                os.environ.get("HOME", ""), "etc"
+            )
             configfile = os.path.join(base, "groupme-bot.yml")
         self.configfile = Path(configfile)
         self.dryrun = dryrun

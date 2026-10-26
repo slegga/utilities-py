@@ -129,11 +129,10 @@ offset, text = gterning(1, 1, 3)
 uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
 ```
 
-## Sjekkeskript for lint-tester (`scripts/sjekk-lint-tester.py`)
+## Sjekkeskript for linting (`scripts/sjekk-lint-tester.py`)
 
-Skriptet går gjennom alle repoene i prosjektet og sjekker at de delbare
-lint-testene er på plass og i tråd med standarden. Det er et uv-skript
-(PEP 723) og kjøres direkte:
+Skriptet går gjennom alle repoene i prosjektet og sjekker at linting er på
+plass i tråd med standarden. Det er et uv-skript (PEP 723) og kjøres direkte:
 
 ```bash
 ./scripts/sjekk-lint-tester.py
@@ -141,64 +140,107 @@ lint-testene er på plass og i tråd med standarden. Det er et uv-skript
 
 På systemer med `coreutils` eldre enn 8.30 (uten `env -S`): `uv run --script
 scripts/sjekk-lint-tester.py`. Skriptet trenger ingen installasjon — uv
-løser avhengighetene (PyYAML, tomli) automatisk. Et kort
+løser avhengighetene (tomli) automatisk. Et kort
 [arkitekturnotat](docs/sjekk-lint-tester.md) ligger i `docs/`.
 
 ### Hvordan skriptet finner repoene
 
-Uten argumenter leses `config.yaml` i meta-privat: `repogruppe` peker på
-repolista (for eksempel `repos-all.txt` — ett reponavn per linje,
-`#`-linjer hoppes over) og `repos_dir` sier hvor repoene ligger.
-Meta-privat finnes med `--meta-rot`, miljøvariabelen `META_PRIVAT_ROT`
-eller ved å søke oppover fra skriptet og fra arbeidskatalogen. Med
-`--repo-rot` og/eller `--repo-liste` kjøres skriptet mot en annen rot
-eller liste — for eksempel mot et fikstur-tre i testene.
+Repoene er alle underkataloger ett nivå under meta-privat
+(menneskevedtak i sak #11: «Trenger ikke repo liste, bruk et nivå av
+kataloger i meta-privat som definisjon»). Ingen repo-liste leses lenger —
+`config.yaml`, `repogruppe` og `repos-all.txt` brukes ikke av skriptet.
+Skjulte kataloger og byggeartefakter (`__pycache__`, `.venv`, `target`
+med flere) hoppes over. Roten er `~/meta-privat`, og kan overstyres med
+`--repo-rot` eller miljøvariabelen `META_PRIVAT_ROT` — for eksempel mot
+et fikstur-tre i testene. Også meta-privats egne underkataloger (`tests/`,
+`docs/`, `scripts/`) tas med: pre-commit-hooken tilhører git-repoet som
+eier katalogen, og for dem er det meta-privat selv.
 
 ### Statusverdier og exit-kode
 
 | Status | Betydning |
 | --- | --- |
-| `OK` | Lint-testen er på plass, inngår i den lokale testkjøringen og følger standarden |
-| `mangler` | Lint-testen (`tests/test_lint.py` for Python, `tests/lint.rs` for Rust) finnes ikke |
-| `avvik` | Lint-testen finnes, men noe avviker: den inngår ikke i den lokale testkjøringen, innholdet avviker fra referansefilen, eller lint-konfigurasjonen er ikke standarden |
-| `intet å gjøre` | Repoet har ingen kode (verken Python eller Rust) |
-| `ikke klonet` | Repo-katalogen finnes ikke lokalt; telles i sammendraget, men påvirker ikke exit-koden |
+| `OK` | Linting er på plass og følger standarden |
+| `mangler` | Pre-commit-hooken (Python) eller `tests/lint.rs` (Rust) finnes ikke |
+| `avvik` | Noe finnes, men avviker: hooken er ikke aktivert/kjørbar eller er ikke referansekopien, gammel lint-test henger igjen, eller lint-konfigurasjonen er ikke standarden |
+| `intet å gjøre` | Katalogen har ingen kode (verken Python eller Rust) |
 
-Exit-kode `0` betyr alt OK. Ikke-null exit-kode betyr avvik (eller at
-sjekkene ikke kunne fullføres): `1` når minst ett repo har `mangler`
-eller `avvik`, `2` når skriptet ikke kunne fullføre alle sjekkene (fant
-ikke repolista, eller referansefilene fra sak #2/sak #8 mangler). Dette
-gjør skriptet egnet for automatiserte kontroller.
+Exit-kode `0` betyr alt OK. `1` betyr at minst ett repo har `mangler`
+eller `avvik` — **reelle avvik vinner over exit-kode 2**, slik at manglende
+referansefiler ikke maskerer avvik som faktisk er funnet. `2` betyr at
+ingen reelle avvik ble funnet, men at skriptet ikke kunne fullføre alle
+sjekkene (fant ikke meta-privat, eller referansefilene fra sak #2/sak #8
+mangler). Dette gjør skriptet egnet for automatiserte kontroller.
+
+Utskrift er fritekst per repo. `--json` gir den samme rapporten som ett
+maskinlesbart JSON-dokument (`repo_rot`, `referanser`, `repoer` med funn og
+fiks-kommandoer, `sammendrag` og `exit_kode`) for automatiserte kontroller.
+Ved fatale feil (finner ikke repo-rota) skrives feilmeldingen til stderr
+med exit-kode 2, også med `--json`.
 
 ### Fiks-kommandoene
 
 Skriptet endrer aldri repoene selv (avklaring 5) — for hvert avvik skriver
 det ut konkrete kommandoer som du kopierer og kjører selv:
 
-* **Kopiering av testfiler:** `cp`-kommandoer som kopierer
-  `tests/test_lint.py` (fra `utilities-py`) og `tests/lint.rs` (fra
+* **Installasjon og aktivering av pre-commit-hooken:** `cp` av
+  `hooks/pre-commit` (fra `utilities-py`) inn i målrepoet uten endringer
+  (avklaring 4), `chmod +x` og `git config core.hooksPath hooks`.
+* **Fjerning av gammel lint-test:** `rm` av `tests/test_lint.py` — linting
+  for Python skjer via pre-commit-hooken, ikke i testkjøringen
+  (menneskevedtak i sak #7 og #11).
+* **Kopiering av Rust-lint-testen:** `cp` av `tests/lint.rs` (fra
   `personlig-py`) inn i målrepoets testkatalog uten endringer (avklaring 4).
-  Den delbare testfilen skal ikke tilpasses det enkelte repoet — den finner
-  prosjektroten relativt til seg selv.
 * **Overskriving av gammel lint-konfigurasjon med standarden** (avklaring 8):
-  `cp` av standard `ruff.toml` fra `utilities-py`, fjerning av
-  overskrivende konfig-filer (`.ruff.toml`, `clippy.toml`, `rustfmt.toml`
-  med flere) og kommandoer som fjerner `[tool.ruff]`-seksjoner fra
-  `pyproject.toml` og `[lints]`-innstillinger fra `Cargo.toml`. Skriptet
-  skriver ut dagens innhold først, slik at avvikende konfigurasjon kan
-  vurderes før den overskrives.
+  fjerning av `ruff.toml`/`.ruff.toml`, `[tool.ruff]`-seksjoner fra
+  `pyproject.toml` og `[lints]`-innstillinger fra `Cargo.toml`, samt
+  `clippy.toml`/`rustfmt.toml`-varianter. Skriptet skriver ut dagens innhold
+  først, slik at avvikende konfigurasjon kan vurderes før den overskrives.
+  Finnes flere ruff-konfigurasjoner samtidig, beholdes én (den første
+  standardkonfigurasjonen) og fiks-kommandoene fjerner de overskytende —
+  også når hver av dem for seg er standard.
 
-### Klassifisering og sjekk av lokal testkjøring
+### Lint-konfigurasjonen og E501
+
+Standarden er ruff **default** regelsett uten egen konfigurasjon
+(menneskevedtak i sak #7: «Bruk standard», «forsøk med default»). Det
+eneste tillatte tillegget er E501-unntaket (menneskevedtak i sak #11:
+«Ignore E501 skal videre føres overalt»):
+
+* Default-regelsettet håndhever ikke E501 (linjer for lange), så E501 er
+  ignorert overalt så lenge default gjelder.
+* Fiks-kommandoene **bevarer eksplisitte E501-unntak** der de finnes, for
+  eksempel `ignore = ["E501"]` i `[tool.ruff.lint]`. Et slikt unntak skrives
+  tilbake som eneste gjenværende innstilling når gammel konfig ryddes bort.
+
+Slik blir det ikke to standarder som står mot hverandre: enten default,
+eller default med E501-unntaket skrevet ut eksplisitt.
+
+### Klassifisering og hva som sjekkes
 
 Hvert repo klassifiseres som **Python**, **Rust**, **begge deler** eller
 **ingen kode** ut fra `pyproject.toml`/`*.py` og `Cargo.toml`/`*.rs`.
-Repoer med begge deler sjekkes for begge lint-testene.
+Repoer med begge deler sjekkes for begge delene.
 
-For Python sjekkes det at `tests/test_lint.py` (eventuelt `test/`) ville
-blitt samlet inn av pytest, ut fra repoets `testpaths` og `python_files`
-i pytest-oppsettet. For Rust sjekkes det at `tests/lint.rs` kjøres av
-`cargo test` — som integrasjonstest under `tests/` eller via et eksplisitt
-`[[test]]`-mål i `Cargo.toml`.
+For Python sjekkes det at linting skjer via en **git pre-commit-hook**:
+hooken skal være aktivert (`core.hooksPath` på alle git-konfig-nivåer,
+ellers `.git/hooks/pre-commit`),
+være kjørbar, kjøre `ruff` og være referansefilen kopiert uendret
+(avklaring 4). Innholdet vurderes mot referansen også når hooken finnes
+uten å være aktivert: en hook som ikke driver Python-linting (for eksempel
+en markdownlint-hook) skal overskrives med referansekopien, ikke bare
+aktiveres. Den gamle lint-testen `tests/test_lint.py` skal være fjernet
+— linting skal ikke lenger skje i testkjøringen. For Rust sjekkes det
+fortsatt at `tests/lint.rs` er på plass, er referansefilen kopiert uendret
+og kjøres av `cargo test` — som integrasjonstest under `tests/` eller via
+et eksplisitt `[[test]]`-mål i `Cargo.toml`. Pre-commit-hooken gjelder
+Python-lintingen; Rust-repoer beholder lintingen i `cargo test`
+(personlig-py sak #8: leveransen «står foreløpig uendret»).
+
+### Vedlikehold
+
+Vedlikeholdet av skriptet har agenten ansvar for. Mennesket justerer evt.
+hvor aktivt det skal brukes (menneskevedtak i sak #7, svar 5).
 
 ## Design conventions
 

@@ -141,7 +141,11 @@ class EmailToHash:
             ctv = header_d["Content-Type"]
             if not isinstance(ctv, (dict, list)):
                 body = {"content": body, "Content-Type": ctv}
-            elif isinstance(ctv, dict) and "a" in ctv and re.match(r"^multipart", ctv["a"][0]):
+            elif (
+                isinstance(ctv, dict)
+                and "a" in ctv
+                and re.match(r"^multipart", ctv["a"][0])
+            ):
                 body = self.multipart(ctv, body)
             elif (
                 isinstance(ctv, dict)
@@ -151,7 +155,9 @@ class EmailToHash:
                 body = {"content": body, "Content-Type": ctv}
 
         cte = header_d.get("Content-Transfer-Encoding")
-        if cte and (not isinstance(body, dict) or not body.get("Content-Transfer-Encoding")):
+        if cte and (
+            not isinstance(body, dict) or not body.get("Content-Transfer-Encoding")
+        ):
             if not isinstance(body, dict):
                 body = {"content": body}
             body["Content-Transfer-Encoding"] = cte
@@ -209,7 +215,9 @@ class EmailToHash:
                     if cte == "quoted-printable":
                         v["content"] = _decode_qp(v.get("content", ""), charset or None)
                     elif cte == "base64":
-                        v["content"] = _decode_b64(v.get("content", ""), charset or None)
+                        v["content"] = _decode_b64(
+                            v.get("content", ""), charset or None
+                        )
                     elif cte == "7bit":
                         pass
                     elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
@@ -257,7 +265,11 @@ class EmailToHash:
 
     def multipart(self, type_: Any, body: str | None) -> str | None:
         if not isinstance(type_, dict):
-            raise ValueError("Content-Type is not a reference")
+            # Datastrukturvalidering: ValueError beholdes for
+            # oppførselkompatibilitet med Perl-modulen. TRY004 inngår i
+            # standarden (ruff default, utilities-py#7) og foreslår TypeError
+            # her — unntaket låser oppførselen i stedet for å endre den.
+            raise ValueError("Content-Type is not a reference")  # noqa: TRY004
         if not re.match(r"^multipart", type_["a"][0], re.IGNORECASE):
             raise ValueError("Content-Type not like multipart")
         if "boundary" not in type_.get("h", {}):

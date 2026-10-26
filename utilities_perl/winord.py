@@ -79,7 +79,9 @@ class WinOrd:
             if self.horizontal:
                 tot = self.split or len(win)
                 for i, key in enumerate(sorted(win)):
-                    win[key]["x_pos"] = (tot - 1 - i) * int((self.x_min + self.x_max) / tot)
+                    win[key]["x_pos"] = (tot - 1 - i) * int(
+                        (self.x_min + self.x_max) / tot
+                    )
                     win[key]["y_pos"] = self.y_min
                     win[key]["x_size"] = int((self.x_max - self.x_min) / num_win)
                     win[key]["y_size"] = self.y_max - self.y_min
@@ -89,7 +91,9 @@ class WinOrd:
                         (self.x_max - self.x_min) / num_win
                     )
                     win[key]["y_pos"] = self.y_min
-                    win[key]["x_size"] = int((self.x_max - self.x_min) / max(num_win, 1))
+                    win[key]["x_size"] = int(
+                        (self.x_max - self.x_min) / max(num_win, 1)
+                    )
                     win[key]["y_size"] = self.y_max - self.y_min
         self.do_resize()
 

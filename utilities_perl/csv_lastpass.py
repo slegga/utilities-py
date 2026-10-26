@@ -24,14 +24,18 @@ def _perl_split(string: str, sep: str) -> list[str]:
 class CSVLastPass:
     """Reader for LastPass-style CSV files."""
 
-    def read(self, file: str, args: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    def read(
+        self, file: str, args: dict[str, Any] | None = None
+    ) -> list[dict[str, str]]:
         """Read ``file`` and return a list of row dicts keyed by header column."""
         args = args or {}
         sep = args.get("sep_char", ",")
         quote = args.get("quote_char", '"')
         where_to_put_extra = args.get("column_with_extra")
 
-        close_re = re.compile(f"(?<!{re.escape(quote)}){re.escape(quote)}{re.escape(sep)}")
+        close_re = re.compile(
+            f"(?<!{re.escape(quote)}){re.escape(quote)}{re.escape(sep)}"
+        )
 
         hashes: list[dict[str, str]] = []
         keys: list[str] = []
@@ -56,7 +60,9 @@ class CSVLastPass:
                         hashes[-1][keys[i]] += "\n"
                     continue
                 hashes[-1][keys[i]] = (
-                    (hashes[-1].get(keys[i], "") + "\n") if hashes[-1].get(keys[i]) else ""
+                    (hashes[-1].get(keys[i], "") + "\n")
+                    if hashes[-1].get(keys[i])
+                    else ""
                 ) + vals[0]
                 if len(vals) == 1:
                     continue
@@ -67,7 +73,9 @@ class CSVLastPass:
                 if len(hashes[-1]) == len(keys):
                     inrow = False
                 else:
-                    raise ValueError(f"Keys: {'-'.join(hashes[-1].keys())} == {'-'.join(keys)}")
+                    raise ValueError(
+                        f"Keys: {'-'.join(hashes[-1].keys())} == {'-'.join(keys)}"
+                    )
                 continue
 
             if inquote:
@@ -118,7 +126,9 @@ class CSVLastPass:
                     inquote = False
                     continue
                 inquote = True
-                rest, data = re.split(f"{re.escape(sep)}?{re.escape(quote)}", line, maxsplit=1)
+                rest, data = re.split(
+                    f"{re.escape(sep)}?{re.escape(quote)}", line, maxsplit=1
+                )
                 vals = rest.split(sep)
                 for idx, val in enumerate(vals):
                     row[keys[idx]] = val

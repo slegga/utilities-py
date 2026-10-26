@@ -110,5 +110,8 @@ def _read_single_key() -> str:
             return sys.stdin.read(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    except Exception:
+    # BLE001 inngår i standarden (ruff default, utilities-py#7) og krever
+    # unntak her: bredden er bevisst, alle feil faller stille tilbake til
+    # readline.
+    except Exception:  # noqa: BLE001
         return sys.stdin.readline().rstrip("\n")

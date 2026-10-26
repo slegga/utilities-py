@@ -108,13 +108,17 @@ def myrowsort(
                             lookup[key] = int(m.group(1))
                         else:
                             lookup[key] = (
-                                SORT_FALLBACK_OFFSET + ord(key[0]) if key else SORT_FALLBACK_OFFSET
+                                SORT_FALLBACK_OFFSET + ord(key[0])
+                                if key
+                                else SORT_FALLBACK_OFFSET
                             )
                     elif isinstance(val, (int, float)):
                         lookup[key] = int(val)
                     else:
                         lookup[key] = (
-                            SORT_FALLBACK_OFFSET + ord(key[0]) if key else SORT_FALLBACK_OFFSET
+                            SORT_FALLBACK_OFFSET + ord(key[0])
+                            if key
+                            else SORT_FALLBACK_OFFSET
                         )
                 return sorted(data.keys(), key=lambda x: lookup[x])
 
@@ -212,7 +216,9 @@ def clist(
         Sammenkjedet liste, f.eks. ``"A, B og C"``.
     """
     names = [item["navn"] for item in data]
-    sorted_names = mytextsort(names, rekkefoelge) if rekkefoelge is not None else sorted(names)
+    sorted_names = (
+        mytextsort(names, rekkefoelge) if rekkefoelge is not None else sorted(names)
+    )
     if len(sorted_names) == 1:
         return sorted_names[0]
     last = sorted_names[-1]
