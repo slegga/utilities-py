@@ -61,12 +61,10 @@ def get_tablename_keys_data(
     if not isinstance(ret, dict):
         raise TypeError("$return is not a HASH")
 
-    # Determine the next row id for this table.
-    table = ret.setdefault(tablename, {"fields": [], "data": []})
-    row_id = len(table["data"])
+    ret.setdefault(tablename, {"fields": [], "data": []})
 
     if isinstance(data, dict):
-        _walk_dict(tablename, ret, data, row_id, fk_name, fk_id)
+        _walk_dict(tablename, ret, data, fk_name, fk_id)
     elif isinstance(data, list):
         _walk_list(tablename, ret, data, fk_name, fk_id)
     else:
@@ -83,14 +81,14 @@ def _walk_dict(
     tablename: str,
     ret: dict[str, Any],
     data: dict[str, Any],
-    row_id: int,
     fk_name: str,
     fk_id: int,
 ) -> None:
     table = ret[tablename]
 
-    # Ensure id and foreign-key fields exist.
+    # Determine the next row id for this table.
     _ensure_field(table, "id")
+    row_id = len(table["data"])
     table["data"].append({"id": row_id})
 
     _ensure_field(table, f"id_{fk_name}")

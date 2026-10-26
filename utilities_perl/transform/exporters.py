@@ -18,6 +18,12 @@ def _extname(path: Any) -> str:
     return Path(str(path)).suffix.lstrip(".")
 
 
+def _check_keys(row: dict[str, Any], accepted: set[str], label: str) -> None:
+    for key in row:
+        if key not in accepted:
+            raise ValueError(f"Unknown key: {key} in {label}")
+
+
 class Exporter:
     """Base class for exporter plugins."""
 
@@ -39,7 +45,7 @@ class YAMLExporter(Exporter):
     def export(self, args: dict, data: Any) -> Any:
         if not args.get("file"):
             raise ValueError("Missing argument file")
-        with open(args["file"], "w", encoding="utf-8") as fh:
+        with Path(args["file"]).open("w", encoding="utf-8") as fh:
             yaml.safe_dump(data, fh, allow_unicode=True, default_flow_style=False)
         return data
 
@@ -132,6 +138,93 @@ class PassCodeExporter(Exporter):
 
         for entry in formatted:
             self._check_duplicate_and_store_file(entry, args)
+
+    def _format_lastpass_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
+        accepted = {
+            "grouping",
+            "name",
+            "password",
+            "username",
+            "url",
+            "totp",
+            "fav",
+            "extra",
+        }
+        formatted: list[dict[str, Any]] = []
+        for row in data:
+            _check_keys(row, accepted, "Last Pass format")
+            entry = self._lastpass_entry(row, args)
+            if entry is not None:
+                formatted.append(entry)
+        return formatted
+
+    def _lastpass_entry(self, row: dict[str, Any], args: dict) -> dict[str, Any] | None:
+        nr: dict[str, Any] = {}
+        nr["filepath"] = (
+            f"{row['grouping']}/{row['name']}" if row.get("grouping") else row["name"]
+        )
+        for key in ("password", "username", "url"):
+            nr[key] = row.get(key)
+        nr["changed"] = time.strftime("%Y-%m-%d")
+        nr["comment"] = row.get("extra")
+        if row.get("totp"):
+            nr["comment"] = (nr["comment"] or "") + ",totp:" + row["totp"]
+        if row.get("fav"):
+            nr["comment"] = (nr["comment"] or "") + ",fav:" + str(row["fav"])
+        if args.get("dir"):
+            nr["dir"] = args["dir"]
+        if not nr.get("filepath"):
+            if sum(1 for v in nr.values() if v is not None) == 2:
+                return None
+            raise ValueError("Missing file path")
+        if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
+            nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])
+        return nr
+
+    def _format_passordfil_rows(self, data: Any, args: dict) -> list[dict[str, Any]]:
+        accepted = {
+            "id",
+            "DOMENE",
+            "GRUPPERING",
+            "SYSTEM",
+            "URL",
+            "BRUKER",
+            "PASSORD",
+            "BESKRIVELSE",
+            "BYTTE",
+        }
+        formatted: list[dict[str, Any]] = []
+        for row in data:
+            _check_keys(row, accepted, "passordfil format")
+            entry = self._passordfil_entry(row, args)
+            if entry is not None:
+                formatted.append(entry)
+        return formatted
+
+    def _passordfil_entry(
+        self, row: dict[str, Any], args: dict
+    ) -> dict[str, Any] | None:
+        filename = row.get("SYSTEM") or row.get("url")
+        if filename is None:
+            raise ValueError("missing filename source")
+        filename = re.sub(r"\s", "_", filename)
+        filename = re.sub(r"^https?://", "", filename)
+        filename = re.sub(r"[/:].*", "", filename)
+        if not filename:
+            if not row.get("password"):
+                return None
+            raise ValueError("No filename")
+        nr = {
+            "filepath": (row.get("GRUPPERING") or row.get("DOMENE")) + "/" + filename,
+            "password": row.get("PASSORD"),
+            "username": row.get("BRUKER"),
+            "url": row.get("URL"),
+            "changed": row.get("BYTTE"),
+            "comment": row.get("BESKRIVELSE"),
+        }
+        if args.get("dir"):
+            nr["dir"] = args["dir"]
+        return nr
 
     def _check_duplicate_and_store_file(self, f: dict[str, Any], args: dict) -> None:
         if not f.get("filepath"):

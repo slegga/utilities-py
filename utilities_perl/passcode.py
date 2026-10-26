@@ -11,15 +11,17 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 OKEYS = ("filepath", "password", "changed", "username", "url", "comment", "extra")
 
 
 def _password_dir() -> str:
-    return os.environ.get("PASSWORD_STORE_DIR") or os.path.join(
-        os.environ.get("HOME", ""), ".password-store"
-    )
+    env_dir = os.environ.get("PASSWORD_STORE_DIR")
+    if env_dir:
+        return env_dir
+    return str(Path(os.environ.get("HOME", "")) / ".password-store")
 
 
 class PassCode:

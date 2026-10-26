@@ -129,124 +129,91 @@ offset, text = gterning(1, 1, 3)
 uv run --script --with "utilities-perl-py @ file:///sti/til/utilities-py" skript.py
 ```
 
-## Sjekkeskript for linting (`scripts/sjekk-lint-tester.py`)
+## Delbar pre-commit-hook (ruff)
 
-Skriptet går gjennom alle repoene i prosjektet og sjekker at linting er på
-plass i tråd med standarden. Det er et uv-skript (PEP 723) og kjøres direkte:
+Hooken gjør linting til en del av `git commit` i stedet for noe som først skjer
+i review, og i stedet for en egen lint-test i pytest (menneskevedtak i sak #7).
+Filen er portabel og kopieres uendret mellom Python-repoer. Kilde er dette
+repoet (`utilities-py`).
 
-```bash
-./scripts/sjekk-lint-tester.py
-```
+### Dette kopieres
 
-På systemer med `coreutils` eldre enn 8.30 (uten `env -S`): `uv run --script
-scripts/sjekk-lint-tester.py`. Skriptet trenger ingen installasjon — uv
-løser avhengighetene (tomli) automatisk. Et kort
-[arkitekturnotat](docs/sjekk-lint-tester.md) ligger i `docs/`.
+| Fil | Legges i | Merknad |
+| --- | --- | --- |
+| `hooks/pre-commit` | målrepoets `hooks/` | Kopieres **uendret**, uten repo-spesifikke tilpassinger |
 
-### Hvordan skriptet finner repoene
+### Slik tas filen i bruk
 
-Repoene er alle underkataloger ett nivå under meta-privat
-(menneskevedtak i sak #11: «Trenger ikke repo liste, bruk et nivå av
-kataloger i meta-privat som definisjon»). Ingen repo-liste leses lenger —
-`config.yaml`, `repogruppe` og `repos-all.txt` brukes ikke av skriptet.
-Skjulte kataloger og byggeartefakter (`__pycache__`, `.venv`, `target`
-med flere) hoppes over. Roten er `~/meta-privat`, og kan overstyres med
-`--repo-rot` eller miljøvariabelen `META_PRIVAT_ROT` — for eksempel mot
-et fikstur-tre i testene. Også meta-privats egne underkataloger (`tests/`,
-`docs/`, `scripts/`) tas med: pre-commit-hooken tilhører git-repoet som
-eier katalogen, og for dem er det meta-privat selv.
+1. Kopier `hooks/pre-commit` til `hooks/pre-commit` i målrepoet og gjør den
+   kjørbar: `chmod +x hooks/pre-commit`.
+2. Aktiver hooken, for eksempel med `git config core.hooksPath hooks`.
+   Alternativt kopieres filen til `.git/hooks/pre-commit`. Merk at
+   `core.hooksPath` peker git bort fra `.git/hooks`, så eventuelle andre
+   hooks der må flyttes med.
+3. Legg `ruff` inn som dev-avhengighet, for eksempel `uv add --dev ruff`
+   eller `uv add --optional dev ruff`. Uten dev-avhengighet brukes
+   `uvx ruff` som fallback, og krever da `uvx` på `PATH`.
+4. Ved neste commit kjøres sjekkene automatisk. Committen blokkeres ved
+   avvik, med tydelig melding om hva som må fikses.
 
-### Statusverdier og exit-kode
+### Hva hooken sjekker
 
-| Status | Betydning |
-| --- | --- |
-| `OK` | Linting er på plass og følger standarden |
-| `mangler` | Pre-commit-hooken (Python) eller `tests/lint.rs` (Rust) finnes ikke |
-| `avvik` | Noe finnes, men avviker: hooken er ikke aktivert/kjørbar eller er ikke referansekopien, gammel lint-test henger igjen, eller lint-konfigurasjonen er ikke standarden |
-| `intet å gjøre` | Katalogen har ingen kode (verken Python eller Rust) |
+- `ruff check .` med ruff sitt standard regelsett (default)
+- `ruff format --check .` for formatering
 
-Exit-kode `0` betyr alt OK. `1` betyr at minst ett repo har `mangler`
-eller `avvik` — **reelle avvik vinner over exit-kode 2**, slik at manglende
-referansefiler ikke maskerer avvik som faktisk er funnet. `2` betyr at
-ingen reelle avvik ble funnet, men at skriptet ikke kunne fullføre alle
-sjekkene (fant ikke meta-privat, eller referansefilene fra sak #2/sak #8
-mangler). Dette gjør skriptet egnet for automatiserte kontroller.
+Feiler en av sjekkene, forteller feilmeldingen hva som må fikses:
+`ruff check --fix` retter lint-varsel, `ruff format` retter formateringen.
+Kjør deretter sjekken på nytt for å bekrefte at alt er rettet, og committen
+på nytt.
 
-Utskrift er fritekst per repo. `--json` gir den samme rapporten som ett
-maskinlesbart JSON-dokument (`repo_rot`, `referanser`, `repoer` med funn og
-fiks-kommandoer, `sammendrag` og `exit_kode`) for automatiserte kontroller.
-Ved fatale feil (finner ikke repo-rota) skrives feilmeldingen til stderr
-med exit-kode 2, også med `--json`.
+Røyktester for hooken ligger i kilde-repoet (`tests/test_precommit_hook.py`)
+og verifiserer blant annet at hooken feiler med tydelig melding på villet
+lint- og formatfeil, blokkerer `git commit`, og håndterer manglende
+ruff/uvx-fallback.
 
-### Fiks-kommandoene
+### Ruff-konfigurasjon
 
-Skriptet endrer aldri repoene selv (avklaring 5) — for hvert avvik skriver
-det ut konkrete kommandoer som du kopierer og kjører selv:
+Hooken krever ingen medfølgende konfigurasjon: ruff kjører med default
+(standard) oppsett, både regelsett og formatering (menneskevedtak i sak #7:
+«Bruk standard» og «forsøk med default»). Egen `ruff.toml` eller
+`[tool.ruff]`-blokk i målrepoet styrer i så fall nivået der, men standarden
+er å ikke ha egen konfigurasjon.
 
-* **Installasjon og aktivering av pre-commit-hooken:** `cp` av
-  `hooks/pre-commit` (fra `utilities-py`) inn i målrepoet uten endringer
-  (avklaring 4), `chmod +x` og `git config core.hooksPath hooks`.
-* **Fjerning av gammel lint-test:** `rm` av `tests/test_lint.py` — linting
-  for Python skjer via pre-commit-hooken, ikke i testkjøringen
-  (menneskevedtak i sak #7 og #11).
-* **Kopiering av Rust-lint-testen:** `cp` av `tests/lint.rs` (fra
-  `personlig-py`) inn i målrepoets testkatalog uten endringer (avklaring 4).
-* **Overskriving av gammel lint-konfigurasjon med standarden** (avklaring 8):
-  fjerning av `ruff.toml`/`.ruff.toml`, `[tool.ruff]`-seksjoner fra
-  `pyproject.toml` og `[lints]`-innstillinger fra `Cargo.toml`, samt
-  `clippy.toml`/`rustfmt.toml`-varianter. Skriptet skriver ut dagens innhold
-  først, slik at avvikende konfigurasjon kan vurderes før den overskrives.
-  Finnes flere ruff-konfigurasjoner samtidig, beholdes én (den første
-  standardkonfigurasjonen) og fiks-kommandoene fjerner de overskytende —
-  også når hver av dem for seg er standard.
-  To tilfeller krever eksplisitt avklaring med mennesket før
-  fiks-kommandoen kjøres (sak #14): en hook med markdownlint/cspell
-  (overskriving fjerner stave- og markdown-kontrollen) og en
-  `exclude`-innstilling i ruff-konfigurasjonen (for eksempel
-  `exclude = ["old"]` i investment-oslo — fjerning gjør at arkivert kode
-  blir lintet). Skriptet varsler eksplisitt i begge tilfellene.
+### `# noqa` for regler utenfor standardregelsettet
 
-### Lint-konfigurasjonen og E501
+Prinsippet er å **fjerne døde `# noqa`-er**, ikke å videreføre dem: merknader
+som undertrykker regler standardregelsettet ikke håndhever (E501, PTH-, S-,
+ARG-, PLC0415-regler og lignende) fjernes — både i dette repoet og i
+målrepoer når gammel lint-konfigurasjon ryddes bort (se under). E501 (for
+lange linjer) er en slik regel: den håndheves uansett ikke, og
+`ruff format` bryter linjer der det trengs. Begrunnelsene bak slike døde
+undertrykkelser beholdes som vanlige kommentarer eller docstring-notater, som
+for `ARG001` i `rpg_common/template.py`.
 
-Standarden er ruff **default** regelsett uten egen konfigurasjon
-(menneskevedtak i sak #7: «Bruk standard», «forsøk med default»). Det
-eneste tillatte tillegget er E501-unntaket (menneskevedtak i sak #11:
-«Ignore E501 skal videre føres overalt»):
+`# noqa` som låser oppførsel som standardregelsettet ellers ville krevd
+endret, beholdes med begrunnelse på samme linje. Det er den motsatte
+kategorien av døde `# noqa`-er: regelen håndheves faktisk av
+standardregelsettet, og oppførselen er tilsiktet. I dette repoet gjelder det
+`# noqa: TRY004` (to steder) og `# noqa: BLE001` — TRY004 og BLE001 ligger i
+ruff sitt default-regelsett (utvidet fra 59 til 413 regler i ruff 0.16), så
+`ruff check .` feiler uten dem.
 
-* Default-regelsettet håndhever ikke E501 (linjer for lange), så E501 er
-  ignorert overalt så lenge default gjelder.
-* Fiks-kommandoene **bevarer eksplisitte E501-unntak** der de finnes, for
-  eksempel `ignore = ["E501"]` i `[tool.ruff.lint]`. Et slikt unntak skrives
-  tilbake som eneste gjenværende innstilling når gammel konfig ryddes bort.
+### Eksisterende lint-konfigurasjon i målrepoet
 
-Slik blir det ikke to standarder som står mot hverandre: enten default,
-eller default med E501-unntaket skrevet ut eksplisitt.
+Meld fra om hva som fantes av lint-konfigurasjon i målrepoet før den
+fjernes — for eksempel en `[tool.ruff]`-blokk i `pyproject.toml`, en eldre
+`ruff.toml` eller et annet lint-oppsett. Notér funnet der det passer
+(commit-melding, issue eller notat).
 
-### Klassifisering og hva som sjekkes
-
-Hvert repo klassifiseres som **Python**, **Rust**, **begge deler** eller
-**ingen kode** ut fra `pyproject.toml`/`*.py` og `Cargo.toml`/`*.rs`.
-Repoer med begge deler sjekkes for begge delene.
-
-For Python sjekkes det at linting skjer via en **git pre-commit-hook**:
-hooken skal være aktivert (`core.hooksPath` på alle git-konfig-nivåer,
-ellers `.git/hooks/pre-commit`),
-være kjørbar, kjøre `ruff` og være referansefilen kopiert uendret
-(avklaring 4). Innholdet vurderes mot referansen også når hooken finnes
-uten å være aktivert: en hook som ikke driver Python-linting (for eksempel
-en markdownlint-hook) skal overskrives med referansekopien, ikke bare
-aktiveres. Den gamle lint-testen `tests/test_lint.py` skal være fjernet
-— linting skal ikke lenger skje i testkjøringen. For Rust sjekkes det
-fortsatt at `tests/lint.rs` er på plass, er referansefilen kopiert uendret
-og kjøres av `cargo test` — som integrasjonstest under `tests/` eller via
-et eksplisitt `[[test]]`-mål i `Cargo.toml`. Pre-commit-hooken gjelder
-Python-lintingen; Rust-repoer beholder lintingen i `cargo test`
-(personlig-py sak #8: leveransen «står foreløpig uendret»).
+Deretter fjernes den gamle konfigurasjonen slik at default gjelder
+(avklaring 8: meld fra og overskriv gammel konfig). Fjern for eksempel
+`[tool.ruff]`-blokka i `pyproject.toml` og eventuell `ruff.toml`, slik at
+det ikke ligger to konfigurasjoner som kjemper om hvilken som gjelder.
 
 ### Vedlikehold
 
-Vedlikeholdet av skriptet har agenten ansvar for. Mennesket justerer evt.
-hvor aktivt det skal brukes (menneskevedtak i sak #7, svar 5).
+Vedlikeholdet av hooken har agenten ansvar for. Mennesket justerer evt. hvor
+aktivt den skal brukes (menneskevedtak i sak #7, svar 5).
 
 ## Design conventions
 
