@@ -130,7 +130,16 @@ def cmd_file_forwarder(argv: list[str] | None = None) -> int:
         if not Path(source_dir).is_dir():
             raise SystemExit(f"Source directory: {source_dir} does not exists")
         for destination, dest_cfg in (destinations or {}).items():
-            _ensure_destination(destination, dest_cfg)
+            if not os.path.isdir(destination):
+                if not isinstance(dest_cfg, dict) or "mount_cmd" not in dest_cfg:
+                    raise SystemExit(f"Destination: {destination} is not a directory.")
+                subprocess.run(
+                    dest_cfg["mount_cmd"].split(), capture_output=True, check=False
+                )
+                if not os.path.isdir(destination):
+                    raise SystemExit(
+                        f"Destination {destination} is not a directory or did not mount."
+                    )
             all_files = [str(p)[len(source_dir) :] for p in Path(source_dir).rglob("*")]
             done_files = dict.fromkeys(done.get(source_dir) or [], 1)
             candidates = [f for f in all_files if done_files.get(f) != 1]

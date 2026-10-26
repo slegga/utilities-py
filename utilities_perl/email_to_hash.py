@@ -248,7 +248,29 @@ class EmailToHash:
             ):
                 v["content"] = self.multipart(ct, v.get("body"))
             else:
-                _decode_single_part(v, ct)
+                charset = ""
+                if isinstance(ct, dict) and ct.get("h", {}).get("charset"):
+                    charset = ct["h"]["charset"]
+                charset = re.sub(r'^["\']|["\']$', "", charset)
+                if v.get("Content-Transfer-Encoding"):
+                    cte = v["Content-Transfer-Encoding"].lower().strip()
+                    cte = re.sub(r"[.;,]+$", "", cte)
+                    if cte == "quoted-printable":
+                        v["content"] = _decode_qp(v.get("content", ""), charset or None)
+                    elif cte == "base64":
+                        v["content"] = _decode_b64(
+                            v.get("content", ""), charset or None
+                        )
+                    elif cte == "7bit":
+                        pass
+                    elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
+                        v["content"] = v.get("content", "")
+                elif (
+                    isinstance(ct, dict)
+                    and ct.get("h", {}).get("charset")
+                    and ct["h"]["charset"].upper() == "UTF-8"
+                ):
+                    pass
                 return v, "next"
         return v, "continue"
 

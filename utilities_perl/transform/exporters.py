@@ -59,9 +59,82 @@ class PassCodeExporter(Exporter):
     def export(self, args: dict, data: Any) -> None:
         formatted: list[dict[str, Any]] = []
         if data and data[0].get("name"):
-            formatted = self._format_lastpass_rows(data, args)
+            accepted = {
+                "grouping",
+                "name",
+                "password",
+                "username",
+                "url",
+                "totp",
+                "fav",
+                "extra",
+            }
+            for row in data:
+                for key in row:
+                    if key not in accepted:
+                        raise ValueError(f"Unknown key: {key} in Last Pass format")
+                nr: dict[str, Any] = {}
+                nr["filepath"] = (
+                    f"{row['grouping']}/{row['name']}"
+                    if row.get("grouping")
+                    else row["name"]
+                )
+                for key in ("password", "username", "url"):
+                    nr[key] = row.get(key)
+                nr["changed"] = time.strftime("%Y-%m-%d")
+                nr["comment"] = row.get("extra")
+                if row.get("totp"):
+                    nr["comment"] = (nr["comment"] or "") + ",totp:" + row["totp"]
+                if row.get("fav"):
+                    nr["comment"] = (nr["comment"] or "") + ",fav:" + str(row["fav"])
+                if args.get("dir"):
+                    nr["dir"] = args["dir"]
+                if not nr.get("filepath"):
+                    if sum(1 for v in nr.values() if v is not None) == 2:
+                        continue
+                    raise ValueError("Missing file path")
+                if re.search(r"jobb|Business", nr["filepath"], re.IGNORECASE):
+                    nr["filepath"] = "jobb/" + os.path.basename(nr["filepath"])
+                formatted.append(nr)
         elif data and "SYSTEM" in data[0]:
-            formatted = self._format_passordfil_rows(data, args)
+            accepted = {
+                "id",
+                "DOMENE",
+                "GRUPPERING",
+                "SYSTEM",
+                "URL",
+                "BRUKER",
+                "PASSORD",
+                "BESKRIVELSE",
+                "BYTTE",
+            }
+            for row in data:
+                for key in row:
+                    if key not in accepted:
+                        raise ValueError(f"Unknown key: {key} in passordfil format")
+                filename = row.get("SYSTEM") or row.get("url")
+                if filename is None:
+                    raise ValueError("missing filename source")
+                filename = re.sub(r"\s", "_", filename)
+                filename = re.sub(r"^https?+://", "", filename)
+                filename = re.sub(r"[/:].*", "", filename)
+                if not filename:
+                    if not row.get("password"):
+                        continue
+                    raise ValueError("No filename")
+                nr = {
+                    "filepath": (row.get("GRUPPERING") or row.get("DOMENE"))
+                    + "/"
+                    + filename,
+                    "password": row.get("PASSORD"),
+                    "username": row.get("BRUKER"),
+                    "url": row.get("URL"),
+                    "changed": row.get("BYTTE"),
+                    "comment": row.get("BESKRIVELSE"),
+                }
+                if args.get("dir"):
+                    nr["dir"] = args["dir"]
+                formatted.append(nr)
 
         for entry in formatted:
             self._check_duplicate_and_store_file(entry, args)
