@@ -980,3 +980,67 @@ def test_docstringen_har_avklarte_valg_ikke_apne_valg(skript: object) -> None:
     assert "utilities-py#7" in skript.__doc__
     assert "Reelle avvik vinner over exit-kode 2" in skript.__doc__
     assert "--json" in skript.__doc__
+
+
+def test_markdownlint_hook_varsler_om_tap_foer_overskriving(
+    skript: object, tmp_path: Path
+) -> None:
+    """Overskriving av markdownlint/cspell-hook skal varsle eksplisitt (sak #14 punkt 3)."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    skriv_hook(repo / "hooks" / "pre-commit", "#!/bin/sh\nmarkdownlint\ncspell\n")
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    tekster = [f.tekst for f in resultat.funn]
+    assert any("sak #14 punkt 3" in tekst for tekst in tekster)
+    assert any("markdownlint/cspell" in tekst for tekst in tekster)
+
+
+def test_kombinert_hook_varsler_om_tap_foer_overskriving(
+    skript: object, tmp_path: Path
+) -> None:
+    """Kombinert hook (ruff + markdownlint/cspell) skal varsle eksplisitt (sak #14 punkt 3)."""
+    repo = lag_python_repo(tmp_path, "repo", hook=False)
+    skriv_hook(
+        repo / "hooks" / "pre-commit",
+        "#!/bin/sh\nruff check .\nmarkdownlint .\ncspell lint\n",
+    )
+    referanse = skriv_hook(tmp_path / "utilities-py" / "hooks" / "pre-commit")
+    refs = skript.Referanser(python_hook=referanse)
+    resultat = skript.Reposultat(
+        navn="repo", sti=repo, klassifisering=skript.KLASSE_PYTHON
+    )
+    skript.sjekk_python(repo, skript.finn_git_rot(repo), refs, resultat)
+    tekster = [f.tekst for f in resultat.funn]
+    assert any("avviker fra referansen" in tekst for tekst in tekster)
+    assert any("sak #14 punkt 3" in tekst for tekst in tekster)
+    assert any("markdownlint/cspell" in tekst for tekst in tekster)
+
+
+def test_ruff_toml_med_exclude_varsler_om_tap(skript: object, tmp_path: Path) -> None:
+    """Fjerning av ruff.toml med exclude skal varsle eksplisitt (sak #14 punkt 4)."""
+    repo = tmp_path / "repo"
+    skriv(repo / "ruff.toml", '# old/ er arkivert\nexclude = ["old"]\n')
+    funn = skript.sjekk_python_konfig(repo)
+    assert len(funn) == 1
+    assert "sak #14 punkt 4" in funn[0].tekst
+    assert "exclude" in funn[0].tekst
+
+
+def test_exclude_advarsel_krever_faktisk_toml_nokkel(skript: object) -> None:
+    """Bare faktisk TOML-nøkkel `exclude`/`extend-exclude` skal varsle (sak #14 punkt 4).
+
+    Delstrenger i variabelnavn, verdier og kommentarer er ikke TOML-nøkler
+    og skal ikke gi varsel — tidligere substring-søk over-varslet.
+    """
+    assert skript.exclude_advarsel('exclude = ["old"]\n') is not None
+    assert skript.exclude_advarsel('extend-exclude = ["old"]\n') is not None
+    assert skript.exclude_advarsel('"exclude" = ["old"]\n') is not None
+    assert skript.exclude_advarsel("# exclude holder old/ utenfor\n") is None
+    assert skript.exclude_advarsel("line-length = 100 # exclude old/\n") is None
+    assert skript.exclude_advarsel('my_exclude = ["old"]\n') is None
+    assert skript.exclude_advarsel('ignore = ["exclude"]\n') is None
+    assert skript.exclude_advarsel('Exclude = ["old"]\n') is None

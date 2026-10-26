@@ -199,6 +199,12 @@ det ut konkrete kommandoer som du kopierer og kjører selv:
   Finnes flere ruff-konfigurasjoner samtidig, beholdes én (den første
   standardkonfigurasjonen) og fiks-kommandoene fjerner de overskytende —
   også når hver av dem for seg er standard.
+  To tilfeller krever eksplisitt avklaring med mennesket før
+  fiks-kommandoen kjøres (sak #14): en hook med markdownlint/cspell
+  (overskriving fjerner stave- og markdown-kontrollen) og en
+  `exclude`-innstilling i ruff-konfigurasjonen (for eksempel
+  `exclude = ["old"]` i investment-oslo — fjerning gjør at arkivert kode
+  blir lintet). Skriptet varsler eksplisitt i begge tilfellene.
 
 ### Lint-konfigurasjonen og E501
 

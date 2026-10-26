@@ -94,7 +94,16 @@ Følgende var åpne punkter i spec-reviewen og er avklart ved ferdigstillelsen
   det meta-privat selv.
 * En eksisterende hook som ikke driver Python-linting (for eksempel
   markdownlint) overskrives med referansekopien (avklaring 4 og 8), ikke bare
-  aktiveres.
+  aktiveres — men fjerner hooken annen linting (markdownlint/cspell),
+  varsles det eksplisitt og avklaring med mennesket kreves før
+  fiks-kommandoen kjøres (sak #14 punkt 3).
+* En ``exclude``-innstilling i ruff-konfigurasjonen (for eksempel
+  ``exclude = ["old"]`` i investment-oslo) varsles eksplisitt: fiks-kommandoen
+  fjerner den, og avklaring med mennesket kreves før den kjøres
+  (sak #14 punkt 4).
+
+Skriptet tas ikke i bruk i automatiserte kontroller før mennesket
+eksplisitt godkjenner det (krav i sak #11 punkt 5, sak #14 punkt 2).
 """
 
 from __future__ import annotations
@@ -102,6 +111,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -120,6 +130,14 @@ RUST_REFERANSE_REPO = "personlig-py"
 PYTHON_REFERANSE_STI = ("hooks", "pre-commit")
 RUST_KONFIGFILER = ("clippy.toml", ".clippy.toml", "rustfmt.toml", ".rustfmt.toml")
 RUFF_KONFIGFILER = ("ruff.toml", ".ruff.toml")
+
+# Faktisk TOML-nøkkel `exclude` (eller `extend-exclude`), eventuelt sitert,
+# etterfulgt av `=`. Case-sensitiv: TOML-nøkler er case-sensitive og ruff
+# kjenner bare små bokstaver. Ankret til linjestart slik at variabelnavn
+# (`my_exclude`), verdier (`ignore = ["exclude"]`) og inline-kommentarer
+# (`line-length = 100 # exclude ...`) ikke matcher (sak #14 punkt 4).
+EXCLUDE_NOKKEL = re.compile(r"""^\s*["']?(extend-)?exclude["']?\s*=""")
+
 
 KLASSE_PYTHON = "python"
 KLASSE_RUST = "rust"
@@ -653,10 +671,14 @@ def sjekk_python_konfig(repo: Path) -> list[Funn]:
             RuffKilde(navn=navn, sti=sti, er_pyproject=False, er_standard=er_standard)
         )
         if not er_standard:
-            detaljer.append(
+            tekst = (
                 f"{navn} avviker fra standarden (ruff default, eventuelt kun "
                 f"{E501}-unntak). Dagens innhold:\n{innrykk(les_tekst(sti))}"
             )
+            advarsel = exclude_advarsel(les_tekst(sti))
+            if advarsel is not None:
+                tekst += f"\n{advarsel}"
+            detaljer.append(tekst)
     pyproject = repo / "pyproject.toml"
     blokk = finn_toml_seksjoner(les_tekst(pyproject), "[tool.ruff")
     if blokk:
@@ -676,11 +698,15 @@ def sjekk_python_konfig(repo: Path) -> list[Funn]:
             )
         )
         if not er_standard:
-            detaljer.append(
+            tekst = (
                 "pyproject.toml har [tool.ruff]-konfigurasjon som avviker fra "
                 f"standarden (ruff default, eventuelt kun {E501}-unntak, "
                 "avklaring 8). Dagens innhold:\n" + innrykk(blokk)
             )
+            advarsel = exclude_advarsel(blokk)
+            if advarsel is not None:
+                tekst += f"\n{advarsel}"
+            detaljer.append(tekst)
     if not detaljer and len(kilder) <= 1:
         return []
 
@@ -758,6 +784,51 @@ def trenger_overskriving(innhold: str, referanse: Path | None) -> bool:
     )
 
 
+def annen_linting_advarsel(innhold: str) -> str | None:
+    """Advarsel hvis hooken driver annen linting som overskriving fjerner.
+
+    `dokumentasjon` har i dag en markdownlint/cspell-hook: fiks-kommandoen
+    overskriver den med ruff-referansen, og fjerner dermed stave- og
+    markdown-kontrollen. Avklar med mennesket (sak #14 punkt 3) om den
+    skal beholdes før fiks-kommandoen kjøres.
+    """
+    lav = innhold.lower()
+    if "markdownlint" in lav or "cspell" in lav:
+        return (
+            "MERK: overskrivingen fjerner markdownlint/cspell-dekningen som "
+            "hooken har i dag. Avklar med mennesket (sak #14 punkt 3) om "
+            "stave- og markdown-kontrollen skal beholdes (for eksempel "
+            "kombinert hook eller kjøring utenfor hooken) før "
+            "fiks-kommandoen kjøres."
+        )
+    return None
+
+
+def exclude_advarsel(tekst: str) -> str | None:
+    """Advarsel hvis ruff-konfigurasjonen har exclude som fiks-kommandoen fjerner.
+
+    `investment-oslo` har `exclude = ["old"]` for arkivert kode
+    (jf. slegga/investment-oslo#27): fiks-kommandoen fjerner filen fordi
+    den ikke inneholder E501, slik at `old/` blir lintet ved neste kjøring.
+    Avklar med mennesket (sak #14 punkt 4) om `exclude` skal bevares før
+    filen fjernes.
+
+    Sjekker faktisk TOML-nøkkel (`exclude` eller `extend-exclude`, eventuelt
+    sitert): delstrenger i variabelnavn, verdier og kommentarer varsler ikke.
+    """
+    for linje in tekst.splitlines():
+        kode, _, _ = linje.partition("#")
+        if EXCLUDE_NOKKEL.match(kode):
+            return (
+                "MERK: fiks-kommandoen fjerner `exclude` som holder arkivert "
+                "kode utenfor ruff (for eksempel `old/` i investment-oslo). "
+                "Avklar med mennesket (sak #14 punkt 4) om `exclude` skal "
+                "bevares før fiks-kommandoen kjøres — ellers blir den "
+                "ekskluderte koden lintet ved neste kjøring."
+            )
+    return None
+
+
 def sjekk_hook_innhold(
     maal: Path,
     referanse: Path | None,
@@ -787,17 +858,26 @@ def sjekk_hook_innhold(
             "skje via pre-commit-hooken (menneskevedtak i utilities-py#7/#11). "
             f"Dagens innhold:\n{innrykk(innhold)}"
         )
+        advarsel = annen_linting_advarsel(innhold)
+        if advarsel is not None:
+            tekst += f"\n{advarsel}"
         if referanse is None:
             tekst += " " + referanse_mangler
         funn.append(Funn(STATUS_AVVIK, tekst, overskriv_fiks))
     elif referanse is not None and innhold != les_tekst(referanse):
+        tekst = (
+            f"Innholdet i {maal} avviker fra referansen i "
+            f"{PYTHON_REFERANSE_REPO}/{'/'.join(PYTHON_REFERANSE_STI)}. Hooken "
+            "skal kopieres uendret (avklaring 4) — overskriv med referansekopien. "
+            f"Dagens innhold:\n{innrykk(innhold)}"
+        )
+        advarsel = annen_linting_advarsel(innhold)
+        if advarsel is not None:
+            tekst += f"\n{advarsel}"
         funn.append(
             Funn(
                 STATUS_AVVIK,
-                f"Innholdet i {maal} avviker fra referansen i "
-                f"{PYTHON_REFERANSE_REPO}/{'/'.join(PYTHON_REFERANSE_STI)}. Hooken "
-                "skal kopieres uendret (avklaring 4) — overskriv med referansekopien. "
-                f"Dagens innhold:\n{innrykk(innhold)}",
+                tekst,
                 overskriv_fiks,
             )
         )
@@ -856,6 +936,9 @@ def sjekk_precommit(git_rot: Path | None, refs: Referanser) -> list[Funn]:
             "(git kjører den ikke), og innholdet er ikke referansefilen kopiert "
             "uendret (avklaring 4). Overskriv med referansekopien og aktiver den."
         )
+        advarsel = annen_linting_advarsel(les_tekst(maal))
+        if advarsel is not None:
+            tekst += f"\n{advarsel}"
         if refs.python_hook is None:
             tekst += " " + referanse_mangler
         aktivering = Funn(STATUS_AVVIK, tekst, fiks)

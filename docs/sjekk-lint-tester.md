@@ -165,7 +165,11 @@ referanserepoene uten endringer (avklaring 4), aktivering av hooken
 lint-test, og overskriving av gammel lint-konfigurasjon med standarden
 (avklaring 8) — inkludert fjerning av `[tool.ruff]` i `pyproject.toml` og
 `[lints]` i `Cargo.toml`, med E501-unntaket bevart. Dagens innhold skrives
-ut først, slik at overskrivingen kan vurderes av mennesket.
+ut først, slik at overskrivingen kan vurderes av mennesket. To tilfeller
+varsles særskilt og krever avklaring før fiks kjøres (sak #14): hook med
+markdownlint/cspell (overskriving fjerner stave- og markdown-kontrollen,
+punkt 3) og `exclude` i ruff-konfigurasjonen (fjerning gjør at arkivert
+kode som `old/` blir lintet, punkt 4).
 
 ## Datastrukturer
 
@@ -186,10 +190,14 @@ tillegg kontrollerer at skriptet ikke endrer noen filer i repo-treet
 fiks-kommandoene med `git config` kan kjøres mot dem. Dekker blant annet
 intet å gjøre, OK, manglende/ikke-aktivert/ukjørbar/utradert
 pre-commit-hook (også inaktiv hook med avvikende innhold), gammel
-lint-test, E501-unntaket (både bevaring og fjerning), flere
-ruff-konfigurasjoner med fiks som fjerner den overskytende, Rust med og
-uten `tests/lint.rs`, begge klasser i ett repo, `--json` og exit-kodene
-0/1/2 — inkludert at reelle avvik (1) vinner over manglende referanse (2).
+  lint-test, E501-unntaket (både bevaring og fjerning), flere
+  ruff-konfigurasjoner med fiks som fjerner den overskytende, Rust med og
+  uten `tests/lint.rs`, begge klasser i ett repo, `--json` og exit-kodene
+  0/1/2 — inkludert at reelle avvik (1) vinner over manglende referanse (2).
+
+  Fjerning av gammel `tests/test_lint.py` (`rm`-kommandoen) er kun dekket
+  av enhetstester: ingen repoer under `~/meta-privat` har filen lenger,
+  så realkjøringen mot det ekte treet (sak #14) kunne ikke verifisere den.
 
 ## Vedlikeholdsansvar
 
@@ -227,9 +235,10 @@ Fra [#11](https://github.com/slegga/utilities-py/issues/11#issuecomment-63707526
 ## Avklart ved ferdigstillelsen av sak #3 (2026-10-24)
 
 Følgende var åpne punkter i spec-reviewen og er avklart ved
-ferdigstillelsen. Mennesket ba om at alle åpne punkter skulle løses;
-valgene er lagt til grunn med hjemmel i vedtakene over, og kan justeres av
-mennesket i ettertid. Fullstendig begrunnelse ligger i human-in-loop-mappen
+ferdigstillelsen, med unntak av punktene 4 og 6 som venter på menneskets
+svar (sak #14). Ingenting under er tatt i bruk i automatiserte kontroller
+før mennesket eksplisitt godkjenner det (krav i sak #11 punkt 5).
+Fullstendig begrunnelse ligger i human-in-loop-mappen
 for sak #3 (`.agent-in-loop/slegga_utilities-py_sak-3/`).
 
 1. **Exit-kodepraksis:** `0/1/2` beholdes, men reelle avvik (exit 1) vinner
@@ -241,17 +250,27 @@ for sak #3 (`.agent-in-loop/slegga_utilities-py_sak-3/`).
    Rust-repoer beholder lintingen i `tests/lint.rs` under `cargo test`
    (personlig-py#8: leveransen «står foreløpig uendret»), og sjekkes ikke
    for pre-commit-hook.
-4. **`dokumentasjon` sin markdownlint/cspell-hook:** erstattes med
-   ruff-referansen (avklaring 4 og 8: kopien skal være uendret, gammel
-   konfig overskrives). Innholdet skrives ut i rapporten, slik at
-   markdownlint-sjekken kan beholdes utenfor hooken hvis ønskelig.
+4. **`dokumentasjon` sin markdownlint/cspell-hook:** avventer menneskets
+   svar (sak #14 punkt 3). Skriptet rapporterer hooken som avvik med
+   fiks-kommando som overskriver med ruff-referansen (avklaring 4 og 8),
+   og skriver ut dagens innhold i rapporten — men overskrivingen fjerner
+   markdownlint/cspell-dekningen. Avklar om stave- og markdown-kontrollen
+   skal beholdes (for eksempel kombinert hook eller kjøring utenfor
+   hooken) før fiks-kommandoen kjøres.
 5. **Meta-privats egne underkataloger** (`tests/`, `docs/`, `scripts/`)
    oppdages som repoer (menneskevedtak i #11: alle kataloger under
    meta-privat), og hooken installeres på eierens git-repo — for dem er det
    meta-privat selv. `ruff check .` der dekker bare meta-privats egne filer,
    siden de klonede repoene er i meta-privats `.gitignore`.
-6. **Godkjenning av statusbildet** fra kjøringen mot de ekte repoene:
-   oppdatert kjøring med fikset skript er lagret i human-in-loop-mappen, og
-   menneskets instruks om å løse alle åpne punkter er tolket som
-   godkjenningen som #11 punkt 5 krever før skriptet tas i bruk i
-   automatiserte kontroller.
+6. **Godkjenning for automatiserte kontroller gjenstår** (sak #11 punkt 5):
+   skriptet er verifisert mot de ekte repoene (sak #14), men tas ikke i
+   bruk i automatiserte kontroller før mennesket eksplisitt godkjenner
+   det. Instruksen om å løse alle åpne punkter er ikke en slik
+   godkjenning — statusbildet og avklaringsspørsmålene legges i sak #14
+   for menneskets svar.
+7. **`investment-oslo` sin `exclude = ["old"]`:** avventer menneskets svar
+   (sak #14 punkt 4). `ruff.toml` der holder arkivert kode (`old/`,
+   jf. slegga/investment-oslo#27) utenfor ruff. Skriptet rapporterer
+   filen som avvik med dagens innhold, men fiks-kommandoen fjerner filen
+   (den inneholder ikke E501) slik at `old/` blir lintet ved neste
+   kjøring. Avklar om `exclude` skal bevares før filen fjernes.
