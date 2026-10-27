@@ -186,8 +186,16 @@ def fiks_kommandoer_fra(ut: str) -> list[str]:
 
 
 def kjor_fiks_kommandoer(kommandoer: list[str]) -> None:
-    """Kjør fiks-kommandoene slik en bruker ville gjort, og krev at de lykkes."""
+    """Kjør fiks-kommandoene slik en bruker ville gjort, og krev at de lykkes.
+
+    Ledende ``python3`` byttes ut med tolken testene kjører under
+    (``sys.executable``): testene skal ikke avhenge av hva ``python3`` peker
+    på i PATH — under ``uv run pytest`` er det uvs tolk som gjelder, ikke en
+    eventuell ``~/.venv``.
+    """
     for kommando in kommandoer:
+        if kommando.startswith("python3 "):
+            kommando = shlex.quote(sys.executable) + kommando[len("python3") :]
         resultat = subprocess.run(
             kommando, shell=True, capture_output=True, text=True, check=False
         )

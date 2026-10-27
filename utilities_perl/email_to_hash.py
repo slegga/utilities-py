@@ -74,31 +74,6 @@ def _decode_mime_words(text: str) -> str:
     )
 
 
-def _decode_single_part(v: dict, ct: Any) -> None:
-    """Dekod content/charset/CTE for en enkelt del i ``v`` (plass, på stedet)."""
-    charset = ""
-    if isinstance(ct, dict) and ct.get("h", {}).get("charset"):
-        charset = ct["h"]["charset"]
-    charset = re.sub(r'^["\']|["\']$', "", charset)
-    if v.get("Content-Transfer-Encoding"):
-        cte = v["Content-Transfer-Encoding"].lower().strip()
-        cte = re.sub(r"[.;,]+$", "", cte)
-        if cte == "quoted-printable":
-            v["content"] = _decode_qp(v.get("content", ""), charset or None)
-        elif cte == "base64":
-            v["content"] = _decode_b64(v.get("content", ""), charset or None)
-        elif cte == "7bit":
-            pass
-        elif cte in ("8bit", "binary") and charset.upper() == "UTF-8":
-            v["content"] = v.get("content", "")
-    elif (
-        isinstance(ct, dict)
-        and ct.get("h", {}).get("charset")
-        and ct["h"]["charset"].upper() == "UTF-8"
-    ):
-        pass
-
-
 class EmailToHash:
     """Parse raw email MIME text into nested dicts."""
 

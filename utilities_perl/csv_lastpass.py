@@ -51,47 +51,11 @@ class CSVLastPass:
 
         for line in lines:
             if inrow:
-                i = len(hashes[-1]) - 1
-                if i > len(keys) - 1:
-                    raise ValueError("Too many columns in continuation row")
-                vals = line.split(sep)  # keep trailing empties (Perl split ... -1)
-                if not vals:
-                    if hashes[-1].get(keys[i]):
-                        hashes[-1][keys[i]] += "\n"
-                    continue
-                hashes[-1][keys[i]] = (
-                    (hashes[-1].get(keys[i], "") + "\n")
-                    if hashes[-1].get(keys[i])
-                    else ""
-                ) + vals[0]
-                if len(vals) == 1:
-                    continue
-                for j in range(1, len(vals)):
-                    if not keys[i + j]:
-                        raise NotImplementedError("Unmapped extra column")
-                    hashes[-1][keys[i + j]] = vals[j]
-                if len(hashes[-1]) == len(keys):
-                    inrow = False
-                else:
-                    raise ValueError(
-                        f"Keys: {'-'.join(hashes[-1].keys())} == {'-'.join(keys)}"
-                    )
+                inrow = self._continue_row(line, hashes, keys, sep)
                 continue
 
             if inquote:
-                i = len(hashes[-1]) - 1
-                if i > len(keys) - 1:
-                    raise ValueError("Too many columns in quoted continuation")
-                if not close_re.search(line):
-                    hashes[-1][keys[i]] = hashes[-1].get(keys[i], "") + line + "\n"
-                else:
-                    data, rest_line = close_re.split(line, 1)
-                    hashes[-1][keys[i]] = hashes[-1].get(keys[i], "") + data
-                    i += 1
-                    vals = rest_line.split(sep)
-                    for j in range(i, len(keys)):
-                        hashes[-1][keys[j]] = vals[j - i]
-                    inquote = False
+                inquote = self._continue_quoted(line, hashes, keys, sep, close_re)
                 continue
             elif first_line:
                 keys = line.split(sep)

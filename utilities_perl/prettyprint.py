@@ -143,11 +143,9 @@ def set_array_item(array_ref: MutableSequence[Any], *pointer_and_value: Any) -> 
         raise ValueError("To few values")
     if len(pointer) == 0:
         raise ValueError("No pointer")
-    if len(pointer) == 1:
-        array_ref[pointer[0]] = value
-    elif len(pointer) == 2:
-        array_ref[pointer[0]][pointer[1]] = value
-    elif len(pointer) == 3:
-        array_ref[pointer[0]][pointer[1]][pointer[2]] = value
-    else:
+    if len(pointer) > 3:
         raise ValueError("To many paramters no support")
+    target = array_ref
+    for index in pointer[:-1]:
+        target = target[index]
+    target[pointer[-1]] = value

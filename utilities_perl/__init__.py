@@ -16,7 +16,7 @@ from .prettyprint import (
     print_hashes,
     set_array_item,
 )
-from .rpg_common import yaml_walk
+from rpg_common.yaml_walk import get_tablename_keys_data as yaml_walk
 from .transform import Transform
 
 __version__ = "0.1.0"
